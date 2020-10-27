@@ -119,7 +119,7 @@ namespace WiiDesktopVR
 
 
         bool showGrid = true;
-        bool showHelp = true;
+        bool showHelp = false;
         bool showMouseCursor = false;
 
         int lastKey = 0;
@@ -367,19 +367,12 @@ namespace WiiDesktopVR
             txtHelper.DrawTextLine("Avg Framerate: " + frameRate);
             if (remote != null)
             {
-                txtHelper.DrawTextLine("Wii IR dots:" + remote.WiimoteState.IRState.Found1 + " "
-                                                        + remote.WiimoteState.IRState.Found2 + " "
-                                                      + remote.WiimoteState.IRState.Found3 + " "
-                                                       + remote.WiimoteState.IRState.Found4);
+                
+                txtHelper.DrawTextLine("Wii IR dots:" + remote.WiimoteState.IRState.IRSensors[0].Found + " "
+                                                        + remote.WiimoteState.IRState.IRSensors[1].Found + " "
+                                                      + remote.WiimoteState.IRState.IRSensors[2].Found + " "
+                                                       + remote.WiimoteState.IRState.IRSensors[3].Found);
             }
-            if (remote2 != null)
-            {
-                txtHelper.DrawTextLine("Wii2 IR dots:" + remote2.WiimoteState.IRState.Found1 + " "
-                                                        + remote2.WiimoteState.IRState.Found2 + " "
-                                                      + remote2.WiimoteState.IRState.Found3 + " "
-                                                       + remote2.WiimoteState.IRState.Found4);
-            }
-            
             txtHelper.DrawTextLine("Last Key Pressed: " + lastKey);
             txtHelper.DrawTextLine("Mouse X-Y: " + mouseCursor.X + ", " +mouseCursor.Y);
             txtHelper.DrawTextLine("Est Head X-Y (mm): " + headX * screenHeightinMM + ", " + headY * screenHeightinMM);
@@ -416,9 +409,11 @@ namespace WiiDesktopVR
 		{
 			try
 			{
+                this.FormBorderStyle = FormBorderStyle.None;//this is the bug that kept thing crashing C# on vista
 
                 AdapterInformation ai = Manager.Adapters.Default;
                 Caps caps = Manager.GetDeviceCaps(ai.Adapter, DeviceType.Hardware);
+                
                 Cursor.Hide();
                 presentParams.Windowed=!doFullscreen;
                 presentParams.SwapEffect = SwapEffect.Discard; // Discard the frames 
@@ -428,7 +423,7 @@ namespace WiiDesktopVR
                 presentParams.BackBufferWidth = m_dwWidth;					//screen width
                 presentParams.BackBufferHeight = m_dwHeight;					//screen height
                 presentParams.BackBufferFormat = Format.R5G6B5;					//color depth
-               presentParams.MultiSample = MultiSampleType.None;				//anti-aliasing
+                presentParams.MultiSample = MultiSampleType.None;				//anti-aliasing
                 presentParams.PresentationInterval  = PresentInterval.Immediate; //don't wait... draw right away
 
                 device = new Device(0, DeviceType.Hardware, this, CreateFlags.SoftwareVertexProcessing, presentParams); //Create a device
@@ -637,23 +632,11 @@ namespace WiiDesktopVR
             {
                 try
                 {
-                    if (doWiimote2)
-                    {
-                        showMouseCursor = true;
-                        remote2 = new Wiimote();
-                        remote2.Connect();
-                        remote2.SetReportType(Wiimote.InputReport.IRAccel, true);
-                        remote2.GetBatteryLevel();
-                        remote2.SetLEDs(true, true, false, false);
-                        remote2.OnWiimoteChanged += new WiimoteChangedEventHandler(wm_OnWiimoteChanged2);
-                    }
                     remote = new Wiimote();
                     remote.Connect();
-                    remote.SetReportType(Wiimote.InputReport.IRAccel, true);
-                    remote.GetBatteryLevel();
+                    remote.SetReportType(InputReport.IRAccel, true);
                     remote.SetLEDs(true, false, false, false);
-                    remote.OnWiimoteChanged += new WiimoteChangedEventHandler(wm_OnWiimoteChanged);
- 
+                    remote.WiimoteChanged +=new EventHandler<WiimoteChangedEventArgs>(wm_OnWiimoteChanged); 
                 }
                 catch (Exception x)
                 {
@@ -671,16 +654,6 @@ namespace WiiDesktopVR
             if (isReady)
                 Render();//wiimote triggered wiimote thread
         }
-        void wm_OnWiimoteChanged2(object sender, WiimoteChangedEventArgs args)
-        {
-            if (remote2.WiimoteState == null)
-                return;
-            if (remote2.WiimoteState.IRState.Found1 && remote2.WiimoteState.IRState.Found2)
-            {
-                mouseCursor.setDown(2 * ((remote2.WiimoteState.IRState.RawX1+remote2.WiimoteState.IRState.RawX2) / 2048.0f - .5f),
-                                    2 * (.5f - (remote2.WiimoteState.IRState.RawY1+remote2.WiimoteState.IRState.RawY2) / 1536.0f));
-            }
-        }
 
         public void ParseWiimoteData()
         {
@@ -691,34 +664,34 @@ namespace WiiDesktopVR
             Point2D secondPoint = new Point2D();
             int numvisible = 0;
 
-            if (remote.WiimoteState.IRState.Found1)
+            if (remote.WiimoteState.IRState.IRSensors[0].Found)
             {
-                wiimotePointsNormalized[0].x = 1.0f-remote.WiimoteState.IRState.RawX1 / 768.0f;
-                wiimotePointsNormalized[0].y = remote.WiimoteState.IRState.RawY1 / 768.0f;
+                wiimotePointsNormalized[0].x = 1.0f-remote.WiimoteState.IRState.IRSensors[0].RawPosition.X / 768.0f;
+                wiimotePointsNormalized[0].y = remote.WiimoteState.IRState.IRSensors[0].RawPosition.Y / 768.0f;
                 wiiCursor1.isDown = true;
-                firstPoint.x = remote.WiimoteState.IRState.RawX1;
-                firstPoint.y = remote.WiimoteState.IRState.RawY1;
+                firstPoint.x = remote.WiimoteState.IRState.IRSensors[0].RawPosition.X;
+                firstPoint.y = remote.WiimoteState.IRState.IRSensors[0].RawPosition.Y;
                 numvisible = 1;
             }
             else
             {//not visible
                 wiiCursor1.isDown = false;
             }
-            if (remote.WiimoteState.IRState.Found2)
+            if (remote.WiimoteState.IRState.IRSensors[1].Found)
             {
-                wiimotePointsNormalized[1].x = 1.0f - remote.WiimoteState.IRState.RawX2 / 768.0f;
-                wiimotePointsNormalized[1].y = remote.WiimoteState.IRState.RawY2 / 768.0f;
+                wiimotePointsNormalized[1].x = 1.0f - remote.WiimoteState.IRState.IRSensors[1].RawPosition.X / 768.0f;
+                wiimotePointsNormalized[1].y = remote.WiimoteState.IRState.IRSensors[1].RawPosition.Y / 768.0f;
                 wiiCursor2.isDown = true;
                 if (numvisible == 0)
                 {
-                    firstPoint.x = remote.WiimoteState.IRState.RawX2;
-                    firstPoint.y = remote.WiimoteState.IRState.RawY2;
+                    firstPoint.x = remote.WiimoteState.IRState.IRSensors[1].RawPosition.X;
+                    firstPoint.y = remote.WiimoteState.IRState.IRSensors[1].RawPosition.Y;
                     numvisible = 1;
                 }
                 else
                 {
-                    secondPoint.x = remote.WiimoteState.IRState.RawX2;
-                    secondPoint.y = remote.WiimoteState.IRState.RawY2;
+                    secondPoint.x = remote.WiimoteState.IRState.IRSensors[1].RawPosition.X;
+                    secondPoint.y = remote.WiimoteState.IRState.IRSensors[1].RawPosition.Y;
                     numvisible = 2;
                 }
             }
@@ -726,20 +699,21 @@ namespace WiiDesktopVR
             {//not visible
                 wiiCursor2.isDown = false;
             }
-            if(remote.WiimoteState.IRState.Found3){
-                wiimotePointsNormalized[2].x = 1.0f - remote.WiimoteState.IRState.RawX3 / 768.0f;
-                wiimotePointsNormalized[2].y = remote.WiimoteState.IRState.RawY3 / 768.0f;
+            if (remote.WiimoteState.IRState.IRSensors[2].Found)
+            {
+                wiimotePointsNormalized[2].x = 1.0f - remote.WiimoteState.IRState.IRSensors[2].RawPosition.X / 768.0f;
+                wiimotePointsNormalized[2].y = remote.WiimoteState.IRState.IRSensors[2].RawPosition.Y / 768.0f;
                 wiiCursor3.isDown = true;
                 if (numvisible == 0)
                 {
-                    firstPoint.x = remote.WiimoteState.IRState.RawX3;
-                    firstPoint.y = remote.WiimoteState.IRState.RawY3;
+                    firstPoint.x = remote.WiimoteState.IRState.IRSensors[2].RawPosition.X;
+                    firstPoint.y = remote.WiimoteState.IRState.IRSensors[2].RawPosition.Y;
                     numvisible = 1;
                 }
                 else if(numvisible==1)
                 {
-                    secondPoint.x = remote.WiimoteState.IRState.RawX3;
-                    secondPoint.y = remote.WiimoteState.IRState.RawY3;
+                    secondPoint.x = remote.WiimoteState.IRState.IRSensors[2].RawPosition.X;
+                    secondPoint.y = remote.WiimoteState.IRState.IRSensors[2].RawPosition.Y;
                     numvisible = 2;
                 }
             }
@@ -747,15 +721,15 @@ namespace WiiDesktopVR
             {//not visible
                 wiiCursor3.isDown = false;
             }
-            if (remote.WiimoteState.IRState.Found4)
+            if (remote.WiimoteState.IRState.IRSensors[3].Found)
             {
-                wiimotePointsNormalized[3].x = 1.0f - remote.WiimoteState.IRState.RawX4 / 768.0f;
-                wiimotePointsNormalized[3].y = remote.WiimoteState.IRState.RawY4 / 768.0f;
+                wiimotePointsNormalized[3].x = 1.0f - remote.WiimoteState.IRState.IRSensors[3].RawPosition.X / 768.0f;
+                wiimotePointsNormalized[3].y = remote.WiimoteState.IRState.IRSensors[3].RawPosition.Y / 768.0f;
                 wiiCursor4.isDown = true;
                 if(numvisible==1)
                 {
-                    secondPoint.x = remote.WiimoteState.IRState.RawX4;
-                    secondPoint.y = remote.WiimoteState.IRState.RawY4;
+                    secondPoint.x = remote.WiimoteState.IRState.IRSensors[3].RawPosition.X;
+                    secondPoint.y = remote.WiimoteState.IRState.IRSensors[3].RawPosition.Y;
                     numvisible = 2;
                 }
             }
@@ -1038,6 +1012,8 @@ namespace WiiDesktopVR
                 while(frm.Created)
                 {
                    Application.DoEvents();
+                   if (!frm.doWiimote)
+                       frm.Render();
                }
                 Cursor.Show();
 

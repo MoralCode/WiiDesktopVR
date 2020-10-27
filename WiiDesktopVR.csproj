@@ -83,6 +83,10 @@
       <Name>System.Windows.Forms</Name>
     </Reference>
     <Reference Include="System.Xml" />
+    <Reference Include="WiimoteLib, Version=1.6.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>.\WiimoteLib.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Common\AssemblyInfo.cs" />
@@ -103,29 +107,9 @@
     <Compile Include="WiiDesktopVR.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="WiimoteLib\DataTypes.cs" />
-    <Compile Include="WiimoteLib\Events.cs" />
-    <Compile Include="WiimoteLib\HIDImports.cs" />
-    <Compile Include="WiimoteLib\NetworkServer.cs" />
-    <Compile Include="WiimoteLib\Wiimote.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Common\directx.ico" />
-    <Content Include="WiimoteLib\bin\Debug\WiimoteLib.dll" />
-    <Content Include="WiimoteLib\bin\Debug\WiimoteLib.pdb" />
-    <Content Include="WiimoteLib\bin\Release\WiimoteLib.dll" />
-    <Content Include="WiimoteLib\bin\Release\WiimoteLib.pdb" />
-    <Content Include="WiimoteLib\obj\Debug\Refactor\WiimoteLib.dll" />
-    <Content Include="WiimoteLib\obj\Debug\WiimoteLib.dll" />
-    <Content Include="WiimoteLib\obj\Debug\WiimoteLib.pdb" />
-    <Content Include="WiimoteLib\obj\WiimoteLib.csproj.FileList.txt" />
-    <Content Include="WiimoteLib\readme.txt" />
-    <Content Include="WiimoteLib\WiimoteLib.csproj" />
-    <Content Include="WiimoteLib\WiimoteLib.csproj.user" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="WiimoteLib\bin\x86\" />
-    <Folder Include="WiimoteLib\obj\Debug\TempPE\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
