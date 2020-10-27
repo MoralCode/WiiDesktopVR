@@ -1,0 +1,5 @@
+screenHieght(mm):508
+sensorBarWidth(mm):215.9
+screenAspect(width/height):0
+cameraIsAboveScreen(true/false):False
+cnnectToSecondWiimote(true/false):False
