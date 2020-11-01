@@ -1,11 +1,17 @@
 using System;
 using System.Drawing;
 using System.IO;
+
 using System.Windows.Forms;
 using Microsoft.Samples.DirectX.UtilityToolkit;
+using SharpDX;
+using SharpDX.Direct3D9;
 using WiimoteLib;
-using Direct3D = Microsoft.DirectX.Direct3D;
-
+using Blend = SharpDX.Direct3D9.Blend;
+using Color = SharpDX.Color;
+using Font = SharpDX.Direct3D9.Font;
+using Matrix = SharpDX.Matrix;
+using Vector3 = SharpDX.Vector3;
 //for reading config file
 
 
@@ -111,7 +117,7 @@ namespace WiiDesktopVR
         private bool showLines = true;
         private bool showMouseCursor;
         private bool showTargets = true;
-        private Microsoft.DirectX.Direct3D.Font statsFont = null; // Font for drawing text
+        private Font statsFont = null; // Font for drawing text
         private VertexBuffer targetBuffer = null;
         private Vector3[] targetPositions;
         private readonly float targetScale = .065f;
@@ -392,6 +398,7 @@ namespace WiiDesktopVR
                 FormBorderStyle = FormBorderStyle.None; //this is the bug that kept thing crashing C# on vista
 
                 AdapterInformation ai = Manager.Adapters.Default;
+                
                 Caps caps = Manager.GetDeviceCaps(ai.Adapter, DeviceType.Hardware);
 
                 Cursor.Hide();
@@ -403,17 +410,18 @@ namespace WiiDesktopVR
                 presentParams.BackBufferWidth = m_dwWidth; //screen width
                 presentParams.BackBufferHeight = m_dwHeight; //screen height
                 presentParams.BackBufferFormat = Format.R5G6B5; //color depth
-                presentParams.MultiSample = MultiSampleType.None; //anti-aliasing
+                presentParams.MultiSampleType = MultisampleType.None; //anti-aliasing
                 presentParams.PresentationInterval = PresentInterval.Immediate; //don't wait... draw right away
 
-                device = new Device(0, DeviceType.Hardware, this, CreateFlags.SoftwareVertexProcessing,
+                //? idk how to get some of these parameters here
+                device = new Device(this, 0, DeviceType.Hardware, this, CreateFlags.SoftwareVertexProcessing,
                     presentParams); //Create a device
                 device.DeviceReset += new EventHandler(OnResetDevice);
                 this.OnCreateDevice(device, null);
                 this.OnResetDevice(device, null);
                 return true;
             }
-            catch (DirectXException)
+            catch (SharpDXException)
             {
                 // Catch any errors and return a failure
                 return false;
@@ -448,12 +456,13 @@ namespace WiiDesktopVR
         public void CreateGridGeometry(Device dev)
         {
             var step = m_dwWidth / numGridlines;
-            gridBuffer = new VertexBuffer(typeof(CustomVertex.PositionColored), 4 * (numGridlines + 2), dev, 0,
-                CustomVertex.PositionColored.Format, Pool.Default);
+            gridBuffer = new VertexBuffer(dev, 4 * (numGridlines + 2), typeof(CustomVertex.PositionColored), CustomVertex.PositionColored.Format, Pool.Default);// 0,
+
+            
 
             CustomVertex.PositionColored[] verts2;
             verts2 = (CustomVertex.PositionColored[]) gridBuffer.Lock(0,
-                0); // Lock the buffer (which will return our structs)
+                0, LockFlags.None); // Lock the buffer (which will return our structs)
             var vertIndex = 0;
             for (var i = 0; i <= numGridlines * 2; i += 2)
             {
@@ -482,7 +491,7 @@ namespace WiiDesktopVR
         {
             try
             {
-                texture = TextureLoader.FromFile(device, textureFilename);
+                texture = Texture.FromFile(device, textureFilename);
             }
             catch
             {
@@ -491,18 +500,18 @@ namespace WiiDesktopVR
                 Directory.SetCurrentDirectory(
                     Application.StartupPath + @"\..\..\");
 
-                texture = TextureLoader.FromFile(device, textureFilename);
+                texture = Texture.FromFile(device, textureFilename);
             }
 
-            device.SamplerState[0].MinFilter = TextureFilter.Linear;
-            device.SamplerState[0].MagFilter = TextureFilter.Linear;
+            device.SetSamplerState(0, SamplerState.MinFilter, TextureFilter.Linear);
+            device.SetSamplerState(0, SamplerState.MagFilter, TextureFilter.Linear);
         }
 
         private void LoadBackground()
         {
             try
             {
-                backgroundtexture = TextureLoader.FromFile(device, backgroundFilename);
+                backgroundtexture = Texture.FromFile(device, backgroundFilename);
             }
             catch
             {
@@ -511,11 +520,11 @@ namespace WiiDesktopVR
                 Directory.SetCurrentDirectory(
                     Application.StartupPath + @"\..\..\");
 
-                backgroundtexture = TextureLoader.FromFile(device, backgroundFilename);
+                backgroundtexture = Texture.FromFile(device, backgroundFilename);
             }
 
-            device.SamplerState[0].MinFilter = TextureFilter.Linear;
-            device.SamplerState[0].MagFilter = TextureFilter.Linear;
+            device.SetSamplerState(0, SamplerState.MinFilter, TextureFilter.Linear);
+            device.SetSamplerState(0, SamplerState.MagFilter, TextureFilter.Linear);
         }
 
         public void CreateTargetGeometry(Device dev)
@@ -542,7 +551,7 @@ namespace WiiDesktopVR
 
             CustomVertex.PositionColored[] verts;
             verts = (CustomVertex.PositionColored[]) lineBuffer.Lock(0,
-                0); // Lock the buffer (which will return our structs)
+                0, LockFlags.None); // Lock the buffer (which will return our structs)
             verts[0].Position = new Vector3(0.0f, 0.0f, 0.0f);
             verts[0].Color = lineColor;
 
@@ -559,7 +568,7 @@ namespace WiiDesktopVR
 
             CustomVertex.PositionTextured[] verts;
             verts = (CustomVertex.PositionTextured[]) backgroundBuffer.Lock(0,
-                0); // Lock the buffer (which will return our structs)
+                0, LockFlags.None); // Lock the buffer (which will return our structs)
             var angleStep = (float) (Math.PI / backgroundStepCount);
             for (var i = 0; i <= backgroundStepCount; i++)
             {
@@ -583,7 +592,7 @@ namespace WiiDesktopVR
             // Create a vertex buffer (100 customervertex)
             CustomVertex.PositionNormalTextured[]
                 verts = (CustomVertex.PositionNormalTextured[]) vb.Lock(0,
-                    0); // Lock the buffer (which will return our structs)
+                    0, LockFlags.None); // Lock the buffer (which will return our structs)
             for (var i = 0; i < 50; i++)
             {
                 // Fill up our structs
@@ -797,15 +806,15 @@ namespace WiiDesktopVR
 
         private void SetupMatrices()
         {
-            device.Transform.World = Matrix.Identity;
+            device.SetTransform(TransformState.World, Matrix.Identity);
 
             // Set up our view matrix. A view matrix can be defined given an eye point,
             // a point to lookat, and a direction for which way is up. Here, we set the
             // eye five units back along the z-axis and up three units, look at the
             // origin, and define "up" to be in the y-direction.
-//            device.Transform.View = Matrix.LookAtLH(new Vector3(mouseCursor.X, mouseCursor.Y, -5.0f), new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 1.0f, 0.0f));
-            device.Transform.View = Matrix.LookAtLH(new Vector3(headX, headY, headDist), new Vector3(headX, headY, 0),
-                new Vector3(0.0f, 1.0f, 0.0f));
+            //            device.Transform.View = Matrix.LookAtLH(new Vector3(mouseCursor.X, mouseCursor.Y, -5.0f), new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 1.0f, 0.0f));
+            device.SetTransform(TransformState.View, Matrix.LookAtLH(new Vector3(headX, headY, headDist), new Vector3(headX, headY, 0),
+                new Vector3(0.0f, 1.0f, 0.0f)));
 
             // For the projection matrix, we set up a perspective transform (which
             // transforms geometry from 3D view space to 2D viewport space, with
@@ -817,12 +826,12 @@ namespace WiiDesktopVR
             //compute the near plane so that the camera stays fixed to -.5f*screenAspect, .5f*screenAspect, -.5f,.5f
             //compting a closer plane rather than simply specifying xmin,xmax,ymin,ymax allows things to float in front of the display
             var nearPlane = .05f;
-            device.Transform.Projection = Matrix.PerspectiveOffCenterLH(
+            device.SetTransform(TransformState.Projection, Matrix.PerspectiveOffCenterLH(
                 nearPlane * (-.5f * screenAspect + headX) / headDist,
                 nearPlane * (.5f * screenAspect + headX) / headDist,
                 nearPlane * (-.5f - headY) / headDist,
                 nearPlane * (.5f - headY) / headDist,
-                nearPlane, 100);
+                nearPlane, 100));
         }
 
         private void Render()
@@ -841,11 +850,12 @@ namespace WiiDesktopVR
 
             SetupMatrices();
 
-            device.RenderState.FogColor = Color.Black;
-            device.RenderState.FogStart = headDist;
-            device.RenderState.FogEnd = headDist + fogdepth;
-            device.RenderState.FogVertexMode = FogMode.Linear;
-            device.RenderState.FogEnable = true;
+            device.SetRenderState(RenderState.FogColor,
+                                  Color.Black);
+            device.SetRenderState(RenderState.FogStart, headDist);
+            device.SetRenderState(RenderState.FogEnd, headDist + fogdepth);
+            device.SetRenderState(RenderState.FogVertexMode, FogMode.Linear);
+            device.SetRenderState(RenderState.FogEnable, true);
 
             if (doWiimote)
             {
@@ -862,40 +872,51 @@ namespace WiiDesktopVR
                     //          wiiCursor4.Render(device);
                 }
 
-                device.Transform.World = worldTransform;
+                device.SetTransform(TransformState.World, worldTransform);
             }
 
             if (showGrid)
             {
-                device.TextureState[0].ColorOperation = TextureOperation.Disable;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Disable);
 
-                device.RenderState.AlphaBlendEnable = false;
-                device.RenderState.AlphaTestEnable = false;
+                device.SetRenderState(RenderState.AlphaBlendEnable, false);
+                device.SetRenderState(RenderState.AlphaTestEnable, false);
 
                 //back
-                device.Transform.World = Matrix.Translation(new Vector3(-.5f, -.5f, -1 * boxdepth / 2));
-                device.Transform.World *= Matrix.Scaling(new Vector3(screenAspect, 1, 1));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(-.5f, -.5f, -1 * boxdepth / 2)));
+                // device.Transform.World *= Matrix.Scaling(new Vector3(screenAspect, 1, 1));
+                device.SetTransform(TransformState.World, Matrix.Scaling(new Vector3(screenAspect, 1, 1)));
+
                 device.SetStreamSource(0, gridBuffer, 0);
                 device.VertexFormat = CustomVertex.PositionColored.Format;
                 device.DrawPrimitives(PrimitiveType.LineList, 0, 2 * (numGridlines + 2));
 
                 //left and right
-                device.Transform.World = Matrix.Translation(new Vector3(-.5f, -.5f, 0));
-                device.Transform.World *= Matrix.Scaling(new Vector3(1 * boxdepth / 2, 1, 1));
-                device.Transform.World *= Matrix.RotationY((float) (Math.PI / 2));
-                device.Transform.World *= Matrix.Translation(new Vector3(0.5f * screenAspect, 0, -.5f * boxdepth / 2));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(-.5f, -.5f, 0)));
+                //device.Transform.World *= Matrix.Scaling(new Vector3(1 * boxdepth / 2, 1, 1));
+                //device.Transform.World *= Matrix.RotationY((float) (Math.PI / 2));
+                //device.Transform.World *= Matrix.Translation(new Vector3(0.5f * screenAspect, 0, -.5f * boxdepth / 2));
+                device.SetTransform(TransformState.World, Matrix.Scaling(new Vector3(1 * boxdepth / 2, 1, 1)));
+                device.SetTransform(TransformState.World, Matrix.RotationY((float)(Math.PI / 2)));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(0.5f * screenAspect, 0, -.5f * boxdepth / 2)));
                 device.DrawPrimitives(PrimitiveType.LineList, 0, 2 * (numGridlines + 2));
-                device.Transform.World *= Matrix.Translation(new Vector3(-1.0f * screenAspect, 0, 0));
+                //device.Transform.World *= Matrix.Translation(new Vector3(-1.0f * screenAspect, 0, 0));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(-1.0f * screenAspect, 0, 0)));
                 device.DrawPrimitives(PrimitiveType.LineList, 0, 2 * (numGridlines + 2));
 
 
                 //floor and ceiling
-                device.Transform.World = Matrix.Translation(new Vector3(-.5f, -.5f, 0));
-                device.Transform.World *= Matrix.Scaling(new Vector3(screenAspect, 1 * boxdepth / 2, 1));
-                device.Transform.World *= Matrix.RotationX((float) (Math.PI / 2));
-                device.Transform.World *= Matrix.Translation(new Vector3(0, 0.5f, -.5f * boxdepth / 2));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(-.5f, -.5f, 0)));
+                //device.Transform.World *= Matrix.Scaling(new Vector3(screenAspect, 1 * boxdepth / 2, 1));
+                //device.Transform.World *= Matrix.RotationX((float) (Math.PI / 2));
+                //device.Transform.World *= Matrix.Translation(new Vector3(0, 0.5f, -.5f * boxdepth / 2));
+                device.SetTransform(TransformState.World, Matrix.Scaling(new Vector3(screenAspect, 1 * boxdepth / 2, 1)));
+                device.SetTransform(TransformState.World, Matrix.RotationX((float)(Math.PI / 2)));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(0, 0.5f, -.5f * boxdepth / 2)));
                 device.DrawPrimitives(PrimitiveType.LineList, 0, 2 * (numGridlines + 2));
-                device.Transform.World *= Matrix.Translation(new Vector3(0, -1.0f, 0));
+                //device.Transform.World *= Matrix.Translation(new Vector3(0, -1.0f, 0));
+                device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(0, -1.0f, 0)));
+
                 device.DrawPrimitives(PrimitiveType.LineList, 0, 2 * (numGridlines + 2));
             }
 
@@ -903,29 +924,31 @@ namespace WiiDesktopVR
             {
                 device.SetTexture(0, texture);
                 //Render States
-                device.RenderState.AlphaBlendEnable = true;
-                device.RenderState.AlphaFunction = Compare.Greater;
-                device.RenderState.AlphaTestEnable = true;
-                device.RenderState.DestinationBlend = Blend.InvSourceAlpha;
-                device.RenderState.SourceBlend = Blend.SourceAlpha;
-                device.RenderState.DiffuseMaterialSource = ColorSource.Material;
+                device.SetRenderState(RenderState.AlphaBlendEnable, true);
+                device.SetRenderState(RenderState.AlphaFunc, Compare.Greater);
+                device.SetRenderState(RenderState.AlphaTestEnable, true);
+                device.SetRenderState(RenderState.DestinationBlend, Blend.InverseSourceAlpha);
+                device.SetRenderState(RenderState.SourceBlend, Blend.SourceAlpha);
+                device.SetRenderState(RenderState.DiffuseMaterialSource, ColorSource.Material);
 
                 //Color blending ops
-                device.TextureState[0].ColorOperation = TextureOperation.Modulate;
-                device.TextureState[0].ColorArgument1 = TextureArgument.TextureColor;
-                device.TextureState[0].ColorArgument2 = TextureArgument.Diffuse;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Modulate);
+                device.SetTextureStageState(0, TextureStage.ColorArg1, TextureArgument.Texture);
+                device.SetTextureStageState(0, TextureStage.ColorArg2, TextureArgument.Diffuse);
 
                 //set the first alpha stage to texture alpha
-                device.TextureState[0].AlphaOperation = TextureOperation.SelectArg1;
-                device.TextureState[0].AlphaArgument1 = TextureArgument.TextureColor;
+                device.SetTextureStageState(0, TextureStage.AlphaOperation, TextureOperation.SelectArg1);
+                device.SetTextureStageState(0, TextureStage.AlphaArg1, TextureArgument.Texture);
 
 
                 device.VertexFormat = Vertex.FVF_Flags;
                 device.SetStreamSource(0, targetBuffer, 0);
                 for (var i = 0; i < numTargets; i++)
                 {
-                    device.Transform.World = Matrix.Scaling(targetSizes[i]);
-                    device.Transform.World *= Matrix.Translation(targetPositions[i]);
+                    device.SetTransform(TransformState.World, Matrix.Scaling(targetSizes[i]));
+                    //device.Transform.World *= Matrix.Translation(targetPositions[i]);
+                    device.SetTransform(TransformState.World, Matrix.Translation(targetPositions[i]));
+
                     device.DrawPrimitives(PrimitiveType.TriangleStrip, 0, 2);
                 }
             }
@@ -934,13 +957,14 @@ namespace WiiDesktopVR
             {
                 device.VertexFormat = CustomVertex.PositionColored.Format;
                 device.SetStreamSource(0, lineBuffer, 0);
-                device.TextureState[0].ColorOperation = TextureOperation.Disable;
-                device.RenderState.AlphaBlendEnable = false;
-                device.RenderState.AlphaTestEnable = false;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Disable);
+                device.SetRenderState(RenderState.AlphaBlendEnable, false);
+                device.SetRenderState(RenderState.AlphaTestEnable, false);
                 for (var i = 0; i < numTargets; i++)
                 {
-                    device.Transform.World = Matrix.Scaling(targetSizes[i]);
-                    device.Transform.World *= Matrix.Translation(targetPositions[i]);
+                    device.SetTransform(TransformState.World, Matrix.Scaling(targetSizes[i]));
+                    //device.Transform.World *= Matrix.Translation(targetPositions[i]);
+                    device.SetTransform(TransformState.World, Matrix.Translation(targetPositions[i]));
                     device.DrawPrimitives(PrimitiveType.LineList, 0, 1);
                 }
             }
@@ -948,13 +972,13 @@ namespace WiiDesktopVR
 
             if (showBackground)
             {
-                device.RenderState.FogEnable = false;
-                device.Transform.World = Matrix.Scaling(new Vector3(3, 2, 3));
+                device.SetRenderState(RenderState.FogEnable, false);
+                device.SetTransform(TransformState.World, Matrix.Scaling(new Vector3(3, 2, 3)));
                 device.SetTexture(0, backgroundtexture);
                 //Render States
-                device.RenderState.AlphaBlendEnable = false;
-                device.RenderState.AlphaTestEnable = false;
-                device.TextureState[0].ColorOperation = TextureOperation.Modulate;
+                device.SetRenderState(RenderState.AlphaBlendEnable, false);
+                device.SetRenderState(RenderState.AlphaTestEnable, false);
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Modulate);
 
 
                 device.VertexFormat = CustomVertex.PositionTextured.Format;
@@ -965,11 +989,11 @@ namespace WiiDesktopVR
 
             if (showMouseCursor)
             {
-                device.TextureState[0].ColorOperation = TextureOperation.Disable;
-                device.RenderState.AlphaBlendEnable = false;
-                device.RenderState.AlphaTestEnable = false;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Disable);
+                device.SetRenderState(RenderState.AlphaBlendEnable, false);
+                device.SetRenderState(RenderState.AlphaTestEnable, false);
 
-                device.Transform.World = Matrix.Identity;
+                device.SetTransform(TransformState.World, Matrix.Identity);
                 mouseCursor.Render(device);
             }
 
@@ -1034,7 +1058,7 @@ namespace WiiDesktopVR
                 tv = _tv;
             }
 
-            public static readonly VertexFormats FVF_Flags = VertexFormats.Position | VertexFormats.Texture1;
+            public static readonly VertexFormat FVF_Flags = VertexFormat.Position | VertexFormat.Texture1;
         }
     }
 }

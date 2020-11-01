@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections;
+using SharpDX.Direct3D9;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
@@ -142,7 +143,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     var adapterInfo = new EnumAdapterInformation();
                     // Store some information
                     adapterInfo.AdapterOrdinal = (uint) ai.Adapter; // Ordinal
-                    adapterInfo.AdapterInformation = ai.Information; // Information
+                    adapterInfo.AdapterInformation = ai.Details; // Information
 
                     // Get list of all display modes on this adapter.  
                     // Also build a temporary list of all display adapter formats.
@@ -151,7 +152,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // Now check to see which formats are supported
                     for (var i = 0; i < allowedFormats.Length; i++)
                         // Check each of the supported display modes for this format
-                        foreach (DisplayMode dm in ai.SupportedDisplayModes[allowedFormats[i]])
+                        foreach (DisplayMode dm in ai.GetDisplayModes(allowedFormats[i]))
                         {
                             if (dm.Width < minimumWidth ||
                                 dm.Height < minimumHeight ||
@@ -253,7 +254,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             }
 
             // Turn exception handling back on
-            DirectXException.EnableExceptions();
+            SharpDXException.EnableExceptions();
         }
 
         /// <summary>
@@ -633,7 +634,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
     public struct EnumDepthStencilMultisampleConflict
     {
         public DepthFormat DepthStencilFormat;
-        public MultiSampleType MultisampleType;
+        public MultisampleType MultisampleType;
     }
 
     /// <summary>

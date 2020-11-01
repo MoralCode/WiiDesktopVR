@@ -9,11 +9,21 @@
 using System;
 using System.Collections;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Windows.Forms;
+using SharpDX;
+using SharpDX.DirectInput;
+using SharpDX.Direct3D9;
+using Color = SharpDX.Color;
+using Font = SharpDX.Direct3D9.Font;
+using Matrix = SharpDX.Matrix;
+using Point = SharpDX.Point;
+using Rectangle = SharpDX.Rectangle;
+using Effect = SharpDX.Direct3D9.Effect;
+using Device = SharpDX.Direct3D9.Device;
 using Microsoft.Win32;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
@@ -337,9 +347,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Is this key down right now</summary>
-        public static bool IsKeyDown(Keys key)
+        public static bool IsKeyDown(Key key)
         {
-            return (GetAsyncKeyState((int) Keys.ShiftKey) & 0x8000) != 0;
+            return (GetAsyncKeyState((int) Key.LeftShift) & 0x8000) != 0;
         }
 
         #endregion
@@ -605,7 +615,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     return textureCache[ct] as Texture;
 
             // No matching entry, load the resource and add it to the cache
-            Texture t = TextureLoader.FromFile(device, filename, w, h, mip, usage, fmt, pool, filter, mipfilter,
+            Texture t = Texture.FromFile(device, filename, w, h, mip, usage, fmt, pool, filter, mipfilter,
                 colorkey);
             var entry = new CachedTexture();
             entry.Source = filename;
@@ -615,7 +625,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             entry.Usage = usage;
             entry.Format = fmt;
             entry.Pool = pool;
-            entry.Type = ResourceType.Textures;
+            entry.Type = ResourceType.Texture;
 
             textureCache.Add(entry, t);
 
@@ -646,7 +656,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     return textureCache[ct] as CubeTexture;
 
             // No matching entry, load the resource and add it to the cache
-            CubeTexture t = TextureLoader.FromCubeFile(device, filename, size, mip, usage, fmt, pool, filter, mipfilter,
+            CubeTexture t = Texture.FromCubeFile(device, filename, size, mip, usage, fmt, pool, filter, mipfilter,
                 colorkey);
             var entry = new CachedTexture();
             entry.Source = filename;
@@ -689,7 +699,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     return textureCache[ct] as VolumeTexture;
 
             // No matching entry, load the resource and add it to the cache
-            VolumeTexture t = TextureLoader.FromVolumeFile(device, filename, w, h, d, mip, usage, fmt, pool, filter,
+            VolumeTexture t = Texture.FromVolumeFile(device, filename, w, h, d, mip, usage, fmt, pool, filter,
                 mipfilter, colorkey);
             var entry = new CachedTexture();
             entry.Source = filename;
@@ -721,7 +731,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     return effectCache[ce] as Effect;
 
             // Nothing found in the cache
-            Effect e = Effect.FromFile(device, filename, defines, includeFile, null, flags, effectPool, out errors);
+            Effect e = Effect.FromFile(device, filename, defines, includeFile, null, flags, effectPool);
             // Add this to the cache
             var entry = new CachedEffect();
             entry.Flags = flags;
@@ -750,8 +760,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             desc.Width = width;
             desc.Weight = weight;
             desc.MipLevels = mip;
-            desc.IsItalic = italic;
-            desc.CharSet = charSet;
+            desc.Italic = italic;
+            desc.CharacterSet = charSet;
             desc.OutputPrecision = outputPrecision;
             desc.Quality = quality;
             desc.PitchAndFamily = pandf;
@@ -767,9 +777,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Search the cache first
             foreach (FontDescription fd in fontCache.Keys)
                 if (string.Compare(fd.FaceName, desc.FaceName, true) == 0 &&
-                    fd.CharSet == desc.CharSet &&
+                    fd.CharacterSet == desc.CharacterSet &&
                     fd.Height == desc.Height &&
-                    fd.IsItalic == desc.IsItalic &&
+                    fd.Italic == desc.Italic &&
                     fd.MipLevels == desc.MipLevels &&
                     fd.OutputPrecision == desc.OutputPrecision &&
                     fd.PitchAndFamily == desc.PitchAndFamily &&
@@ -827,7 +837,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // A match was found, get rid of it
                     switch (ct.Type)
                     {
-                        case ResourceType.Textures:
+                        case ResourceType.Te:
                             (textureCache[ct] as Texture).Dispose();
                             break;
                         case ResourceType.CubeTexture:
@@ -883,8 +893,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         public ArcBall()
         {
             Reset();
-            downPt = Vector3.Empty;
-            currentPt = Vector3.Empty;
+            //changed to zero from empty
+            downPt = Vector3.Zero;
+            currentPt = Vector3.Zero;
 
             var active = Form.ActiveForm;
             if (active != null)
@@ -1164,7 +1175,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             keys = new bool[(int) CameraKeys.MaxKeys];
 
             // Set attributes for the view matrix
-            eye = Vector3.Empty;
+            //converted from empty to zero
+            eye = Vector3.Zero;
             lookAt = new Vector3(0.0f, 0.0f, 1.0f);
 
             // Setup the view matrix
@@ -1186,18 +1198,19 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             cameraPitchAngle = 0.0f;
 
             dragRectangle = new Rectangle(0, 0, int.MaxValue, int.MaxValue);
-            velocity = Vector3.Empty;
+            //vectors changed to zero from empty
+            velocity = Vector3.Zero;
             isMovementDrag = false;
-            velocityDrag = Vector3.Empty;
+            velocityDrag = Vector3.Zero;
             dragTimer = 0.0f;
             totalDragTimeToZero = 0.25f;
-            rotationVelocity = Vector2.Empty;
+            rotationVelocity = Vector2.Zero;
             rotationScaler = 0.1f;
             moveScaler = 5.0f;
             isInvertPitch = false;
             isEnableYAxisMovement = true;
             isEnablePositionMovement = true;
-            mouseDelta = Vector2.Empty;
+            mouseDelta = Vector2.Zero;
             framesToSmoothMouseData = 2.0f;
             isClipToBoundary = false;
             minBoundary = new Vector3(-1.0f, -1.0f, -1.0f);
@@ -1210,32 +1223,32 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// </summary>
         protected static CameraKeys MapKey(IntPtr param)
         {
-            var key = (Keys) param.ToInt32();
+            var key = (Key) param.ToInt32();
             switch (key)
             {
-                case Keys.ControlKey: return CameraKeys.ControlDown;
-                case Keys.Left: return CameraKeys.StrafeLeft;
-                case Keys.Right: return CameraKeys.StrafeRight;
-                case Keys.Up: return CameraKeys.MoveForward;
-                case Keys.Down: return CameraKeys.MoveBackward;
-                case Keys.Prior: return CameraKeys.MoveUp; // pgup
-                case Keys.Next: return CameraKeys.MoveDown; // pgdn
+                case Key.LeftControl: return CameraKeys.ControlDown;
+                case Key.Left: return CameraKeys.StrafeLeft;
+                case Key.Right: return CameraKeys.StrafeRight;
+                case Key.Up: return CameraKeys.MoveForward;
+                case Key.Down: return CameraKeys.MoveBackward;
+                case Key.PageUp: return CameraKeys.MoveUp;
+                case Key.PageDown: return CameraKeys.MoveDown;
 
-                case Keys.A: return CameraKeys.StrafeLeft;
-                case Keys.D: return CameraKeys.StrafeRight;
-                case Keys.W: return CameraKeys.MoveForward;
-                case Keys.S: return CameraKeys.MoveBackward;
-                case Keys.Q: return CameraKeys.MoveUp;
-                case Keys.E: return CameraKeys.MoveDown;
+                case Key.A: return CameraKeys.StrafeLeft;
+                case Key.D: return CameraKeys.StrafeRight;
+                case Key.W: return CameraKeys.MoveForward;
+                case Key.S: return CameraKeys.MoveBackward;
+                case Key.Q: return CameraKeys.MoveUp;
+                case Key.E: return CameraKeys.MoveDown;
 
-                case Keys.NumPad4: return CameraKeys.StrafeLeft;
-                case Keys.NumPad6: return CameraKeys.StrafeRight;
-                case Keys.NumPad8: return CameraKeys.MoveForward;
-                case Keys.NumPad2: return CameraKeys.MoveBackward;
-                case Keys.NumPad9: return CameraKeys.MoveUp;
-                case Keys.NumPad3: return CameraKeys.MoveDown;
+                case Key.NumberPad4: return CameraKeys.StrafeLeft;
+                case Key.NumberPad6: return CameraKeys.StrafeRight;
+                case Key.NumberPad8: return CameraKeys.MoveForward;
+                case Key.NumberPad2: return CameraKeys.MoveBackward;
+                case Key.NumberPad9: return CameraKeys.MoveUp;
+                case Key.NumberPad3: return CameraKeys.MoveDown;
 
-                case Keys.Home: return CameraKeys.Reset;
+                case Key.Home: return CameraKeys.Reset;
             }
 
             // No idea
@@ -1284,7 +1297,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // Update the variable state
                     if ((msg == NativeMethods.WindowMessage.LeftButtonDown ||
                          msg == NativeMethods.WindowMessage.LeftButtonDoubleClick)
-                        && dragRectangle.Contains(cursor))
+                        && dragRectangle.Contains(cursor.X, cursor.Y))
                     {
                         isMouseLButtonDown = true;
                         currentButtonMask |= (int) MouseButtonMask.Left;
@@ -1292,7 +1305,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     if ((msg == NativeMethods.WindowMessage.MiddleButtonDown ||
                          msg == NativeMethods.WindowMessage.MiddleButtonDoubleClick)
-                        && dragRectangle.Contains(cursor))
+                        && dragRectangle.Contains(cursor.X, cursor.Y))
                     {
                         isMouseMButtonDown = true;
                         currentButtonMask |= (int) MouseButtonMask.Middle;
@@ -1300,7 +1313,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     if ((msg == NativeMethods.WindowMessage.RightButtonDown ||
                          msg == NativeMethods.WindowMessage.RightButtonDoubleClick)
-                        && dragRectangle.Contains(cursor))
+                        && dragRectangle.Contains(cursor.X, cursor.Y))
                     {
                         isMouseRButtonDown = true;
                         currentButtonMask |= (int) MouseButtonMask.Right;
@@ -1474,7 +1487,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (isMovementDrag)
             {
                 // Is there any acceleration this frame?
-                if (accel.LengthSq() > 0)
+                if (accel.LengthSquared() > 0)
                 {
                     // If so, then this means the user has pressed a movement key
                     // so change the velocity immediately to acceleration 
@@ -1495,7 +1508,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     else
                     {
                         // Zero velocity
-                        velocity = Vector3.Empty;
+                        //changed from Empty. this effectively confirms that empty and zero are the same between DirectX and SharpDX.
+                        velocity = Vector3.Zero;
                     }
                 }
             }
@@ -1803,16 +1817,19 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Since we're accumulating delta rotations, we need to orthonormalize 
             // the matrix to prevent eventual matrix skew
-            fixed (void* pxBasis = &modelRotation.M11)
+            fixed (float* pxBasis = &modelRotation.M11)
             {
-                fixed (void* pyBasis = &modelRotation.M21)
+                fixed (float* pyBasis = &modelRotation.M21)
                 {
-                    fixed (void* pzBasis = &modelRotation.M31)
+                    fixed (float* pzBasis = &modelRotation.M31)
                     {
-                        UnsafeNativeMethods.Vector3.Normalize((Vector3*) pxBasis, (Vector3*) pxBasis);
-                        UnsafeNativeMethods.Vector3.Cross((Vector3*) pyBasis, (Vector3*) pzBasis, (Vector3*) pxBasis);
-                        UnsafeNativeMethods.Vector3.Normalize((Vector3*) pyBasis, (Vector3*) pyBasis);
-                        UnsafeNativeMethods.Vector3.Cross((Vector3*) pzBasis, (Vector3*) pxBasis, (Vector3*) pyBasis);
+                        Vector3 x = new Vector3(*pxBasis);
+                        x.Normalize();
+                        Vector3 y = new Vector3(*pyBasis);
+                        Vector3 z = new Vector3(*pzBasis);
+                        Vector3.Cross(ref y, ref z, out x);
+                        y.Normalize();
+                        Vector3.Cross(ref z, ref x, out y);
                     }
                 }
             }
@@ -2467,18 +2484,22 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Note that per-frame delta rotations could be problematic over long periods of time.
             rotation *= viewMatrix * lastRotationInv * rot * invView;
 
+
             // Since we're accumulating delta rotations, we need to orthonormalize 
             // the matrix to prevent eventual matrix skew
-            fixed (void* pxBasis = &rotation.M11)
+            fixed (float* pxBasis = &rotation.M11)
             {
-                fixed (void* pyBasis = &rotation.M21)
+                fixed (float* pyBasis = &rotation.M21)
                 {
-                    fixed (void* pzBasis = &rotation.M31)
+                    fixed (float* pzBasis = &rotation.M31)
                     {
-                        UnsafeNativeMethods.Vector3.Normalize((Vector3*) pxBasis, (Vector3*) pxBasis);
-                        UnsafeNativeMethods.Vector3.Cross((Vector3*) pyBasis, (Vector3*) pzBasis, (Vector3*) pxBasis);
-                        UnsafeNativeMethods.Vector3.Normalize((Vector3*) pyBasis, (Vector3*) pyBasis);
-                        UnsafeNativeMethods.Vector3.Cross((Vector3*) pzBasis, (Vector3*) pxBasis, (Vector3*) pyBasis);
+                        Vector3 x = new Vector3(*pxBasis);
+                        x.Normalize();
+                        Vector3 y = new Vector3(*pyBasis);
+                        Vector3 z = new Vector3(*pzBasis);
+                        Vector3.Cross(ref y, ref z, out x);
+                        y.Normalize();
+                        Vector3.Cross(ref z, ref x, out y);
                     }
                 }
             }
@@ -2488,7 +2509,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Render the light widget</summary>
-        public unsafe void OnRender(ColorValue color, Matrix view, Matrix proj, Vector3 eye)
+        public unsafe void OnRender(Color color, Matrix view, Matrix proj, Vector3 eye)
         {
             // Store the view matrix
             viewMatrix = view;

@@ -10,6 +10,9 @@ using System;
 using System.Collections;
 using System.Drawing;
 using System.Windows.Forms;
+using SharpDX;
+using SharpDX.Direct3D9;
+using Font = SharpDX.Direct3D9.Font;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
@@ -48,14 +51,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
     /// </summary>
     public struct BlendColor
     {
-        public ColorValue[] States; // Modulate colors for all possible control states
-        public ColorValue Current; // Current color
+        public Color[] States; // Modulate colors for all possible control states
+        public Color Current; // Current color
 
         /// <summary>Initialize the color blending</summary>
-        public void Initialize(ColorValue defaultColor, ColorValue disabledColor, ColorValue hiddenColor)
+        public void Initialize(Color defaultColor, Color disabledColor, Color hiddenColor)
         {
+
+            
             // Create the array
-            States = new ColorValue[(int) ControlState.LastState];
+            States = new Color[(int) ControlState.LastState];
             for (var i = 0; i < States.Length; i++) States[i] = defaultColor;
 
             // Store the data
@@ -65,9 +70,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Initialize the color blending</summary>
-        public void Initialize(ColorValue defaultColor)
+        public void Initialize(Color defaultColor)
         {
-            Initialize(defaultColor, new ColorValue(0.5f, 0.5f, 0.5f, 0.75f), new ColorValue());
+            Initialize(defaultColor, new Color(0.5f, 0.5f, 0.5f, 0.75f), new Color());
         }
 
         /// <summary>Blend the colors together</summary>
@@ -76,7 +81,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (States == null || States.Length == 0)
                 return; // Nothing to do
 
-            ColorValue destColor = States[(int) state];
+            Color destColor = States[(int) state];
             Current = ColorOperator.Lerp(Current, destColor, 1.0f - (float) Math.Pow(rate, 30 * elapsedTime));
         }
 
@@ -103,7 +108,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
     public class Element : ICloneable
     {
         /// <summary>Set the texture</summary>
-        public void SetTexture(uint tex, Rectangle texRect, ColorValue defaultTextureColor)
+        public void SetTexture(uint tex, Rectangle texRect, Color defaultTextureColor)
         {
             // Store data
             TextureIndex = tex;
@@ -114,11 +119,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Set the texture</summary>
         public void SetTexture(uint tex, Rectangle texRect)
         {
-            SetTexture(tex, texRect, Dialog.WhiteColorValue);
+            SetTexture(tex, texRect, Dialog.WhiteColor);
         }
 
         /// <summary>Set the font</summary>
-        public void SetFont(uint font, ColorValue defaultFontColor, DrawTextFormat format)
+        public void SetFont(uint font, Color defaultFontColor, DrawTextFormat format)
         {
             // Store data
             FontIndex = font;
@@ -129,7 +134,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Set the font</summary>
         public void SetFont(uint font)
         {
-            SetFont(font, Dialog.WhiteColorValue, DrawTextFormat.Center | DrawTextFormat.VerticalCenter);
+            SetFont(font, Dialog.WhiteColor, DrawTextFormat.Center | DrawTextFormat.VerticalCenter);
         }
 
         /// <summary>
@@ -468,7 +473,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             caption = string.Empty;
             CaptionHeight = 18;
 
-            topLeftColor = topRightColor = bottomLeftColor = bottomRightColor = new ColorValue();
+            topLeftColor = topRightColor = bottomLeftColor = bottomRightColor = new Color();
 
             timeLastRefresh = 0.0f;
 
@@ -494,10 +499,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Element for the caption
             //-------------------------------------
             captionElement = new Element();
-            captionElement.SetFont(0, WhiteColorValue, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
+            captionElement.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
             captionElement.SetTexture(0, Rectangle.FromLTRB(17, 269, 241, 287));
-            captionElement.TextureColor.States[(int) ControlState.Normal] = WhiteColorValue;
-            captionElement.FontColor.States[(int) ControlState.Normal] = WhiteColorValue;
+            captionElement.TextureColor.States[(int) ControlState.Normal] = WhiteColor;
+            captionElement.FontColor.States[(int) ControlState.Normal] = WhiteColor;
             // Pre-blend as we don't need to transition the state
             captionElement.TextureColor.Blend(ControlState.Normal, 10.0f);
             captionElement.FontColor.Blend(ControlState.Normal, 10.0f);
@@ -508,7 +513,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // StaticText
             //-------------------------------------
             e.SetFont(0);
-            e.FontColor.States[(int) ControlState.Disabled] = new ColorValue(0.75f, 0.75f, 0.75f, 0.75f);
+            e.FontColor.States[(int) ControlState.Disabled] = new Color(0.75f, 0.75f, 0.75f, 0.75f);
             // Assign the element
             SetDefaultElement(ControlType.StaticText, StaticText.TextElement, e);
 
@@ -517,9 +522,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(0, 0, 136, 54));
             e.SetFont(0);
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(1.0f, 1.0f, 1.0f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Pressed] = new ColorValue(1.0f, 1.0f, 1.0f, 0.85f);
-            e.FontColor.States[(int) ControlState.MouseOver] = BlackColorValue;
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Pressed] = new Color(1.0f, 1.0f, 1.0f, 0.85f);
+            e.FontColor.States[(int) ControlState.MouseOver] = BlackColor;
             // Assign the element
             SetDefaultElement(ControlType.Button, Button.ButtonLayer, e);
 
@@ -527,9 +532,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Button - Fill Layer
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(136, 0, 252, 54), TransparentWhite);
-            e.TextureColor.States[(int) ControlState.MouseOver] = new ColorValue(1.0f, 1.0f, 1.0f, 0.6f);
-            e.TextureColor.States[(int) ControlState.Pressed] = new ColorValue(0, 0, 0, 0.25f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(1.0f, 1.0f, 1.0f, 0.05f);
+            e.TextureColor.States[(int) ControlState.MouseOver] = new Color(1.0f, 1.0f, 1.0f, 0.6f);
+            e.TextureColor.States[(int) ControlState.Pressed] = new Color(0, 0, 0, 0.25f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.05f);
             // Assign the element
             SetDefaultElement(ControlType.Button, Button.FillLayer, e);
 
@@ -538,11 +543,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // CheckBox - Box
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(0, 54, 27, 81));
-            e.SetFont(0, WhiteColorValue, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
-            e.FontColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 0.8f);
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(1.0f, 1.0f, 1.0f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(1.0f, 1.0f, 1.0f, 0.8f);
-            e.TextureColor.States[(int) ControlState.Pressed] = WhiteColorValue;
+            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
+            e.FontColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.8f);
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.8f);
+            e.TextureColor.States[(int) ControlState.Pressed] = WhiteColor;
             // Assign the element
             SetDefaultElement(ControlType.CheckBox, Checkbox.BoxLayer, e);
 
@@ -557,11 +562,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // RadioButton - Box
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(54, 54, 81, 81));
-            e.SetFont(0, WhiteColorValue, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
-            e.FontColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 0.8f);
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(1.0f, 1.0f, 1.0f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(1.0f, 1.0f, 1.0f, 0.8f);
-            e.TextureColor.States[(int) ControlState.Pressed] = WhiteColorValue;
+            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
+            e.FontColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.8f);
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.8f);
+            e.TextureColor.States[(int) ControlState.Pressed] = WhiteColor;
             // Assign the element
             SetDefaultElement(ControlType.RadioButton, Checkbox.BoxLayer, e);
 
@@ -577,12 +582,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(7, 81, 247, 123));
             e.SetFont(0);
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(0.8f, 0.8f, 0.8f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(0.95f, 0.95f, 0.95f, 0.6f);
-            e.TextureColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 0.25f);
-            e.FontColor.States[(int) ControlState.MouseOver] = new ColorValue(0, 0, 0, 1.0f);
-            e.FontColor.States[(int) ControlState.Pressed] = new ColorValue(0, 0, 0, 1.0f);
-            e.FontColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 0.8f);
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(0.8f, 0.8f, 0.8f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(0.95f, 0.95f, 0.95f, 0.6f);
+            e.TextureColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.25f);
+            e.FontColor.States[(int) ControlState.MouseOver] = new Color(0, 0, 0, 1.0f);
+            e.FontColor.States[(int) ControlState.Pressed] = new Color(0, 0, 0, 1.0f);
+            e.FontColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.8f);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.MainLayer, e);
 
@@ -590,10 +595,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // ComboBox - Button
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(98, 189, 151, 238));
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(1.0f, 1.0f, 1.0f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Pressed] = new ColorValue(0.55f, 0.55f, 0.55f, 1.0f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(1.0f, 1.0f, 1.0f, 0.75f);
-            e.TextureColor.States[(int) ControlState.Disabled] = new ColorValue(1.0f, 1.0f, 1.0f, 0.25f);
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Pressed] = new Color(0.55f, 0.55f, 0.55f, 1.0f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.75f);
+            e.TextureColor.States[(int) ControlState.Disabled] = new Color(1.0f, 1.0f, 1.0f, 0.25f);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.ComboButtonLayer, e);
 
@@ -601,7 +606,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // ComboBox - Dropdown
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(13, 123, 241, 160));
-            e.SetFont(0, BlackColorValue, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.DropdownLayer, e);
 
@@ -609,7 +614,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // ComboBox - Selection
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(12, 163, 239, 183));
-            e.SetFont(0, WhiteColorValue, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.Top);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.SelectionLayer, e);
 
@@ -617,9 +622,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Slider - Track
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(1, 187, 93, 228));
-            e.TextureColor.States[(int) ControlState.Normal] = new ColorValue(1.0f, 1.0f, 1.0f, 0.55f);
-            e.TextureColor.States[(int) ControlState.Focus] = new ColorValue(1.0f, 1.0f, 1.0f, 0.75f);
-            e.TextureColor.States[(int) ControlState.Disabled] = new ColorValue(1.0f, 1.0f, 1.0f, 0.25f);
+            e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+            e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.75f);
+            e.TextureColor.States[(int) ControlState.Disabled] = new Color(1.0f, 1.0f, 1.0f, 0.25f);
             // Assign the element
             SetDefaultElement(ControlType.Slider, Slider.TrackLayer, e);
 
@@ -647,7 +652,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             e.SetTexture(0,
                 Rectangle.FromLTRB(scrollBarStartX + 0, scrollBarStartY + 1, scrollBarStartX + 22,
                     scrollBarStartY + 21));
-            e.TextureColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 1.0f);
+            e.TextureColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 1.0f);
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.UpButtonLayer, e);
 
@@ -657,7 +662,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             e.SetTexture(0,
                 Rectangle.FromLTRB(scrollBarStartX + 0, scrollBarStartY + 32, scrollBarStartX + 22,
                     scrollBarStartY + 53));
-            e.TextureColor.States[(int) ControlState.Disabled] = new ColorValue(0.8f, 0.8f, 0.8f, 1.0f);
+            e.TextureColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 1.0f);
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.DownButtonLayer, e);
 
@@ -682,7 +687,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //   6 - lower left border
             //   7 - lower border
             //   8 - lower right border
-            e.SetFont(0, BlackColorValue, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
 
             // Assign the styles
             e.SetTexture(0, Rectangle.FromLTRB(14, 90, 241, 113));
@@ -709,7 +714,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Listbox - Main
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(13, 123, 241, 160));
-            e.SetFont(0, BlackColorValue, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
             // Assign the element
             SetDefaultElement(ControlType.ListBox, ListBox.MainLayer, e);
 
@@ -717,7 +722,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Listbox - Selection
             //-------------------------------------
             e.SetTexture(0, Rectangle.FromLTRB(16, 166, 240, 183));
-            e.SetFont(0, WhiteColorValue, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.Top);
             // Assign the element
             SetDefaultElement(ControlType.ListBox, ListBox.SelectionLayer, e);
         }
@@ -775,9 +780,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         #region Static Data
 
         public const int WheelDelta = 120;
-        public static readonly ColorValue WhiteColorValue = new ColorValue(1.0f, 1.0f, 1.0f, 1.0f);
-        public static readonly ColorValue TransparentWhite = new ColorValue(1.0f, 1.0f, 1.0f, 0.0f);
-        public static readonly ColorValue BlackColorValue = new ColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+        public static readonly Color WhiteColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+        public static readonly Color TransparentWhite = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+        public static readonly Color BlackColor = new Color(0.0f, 0.0f, 0.0f, 1.0f);
         private static Control controlFocus; // The control which has focus
         private static Control controlMouseOver; // The control which is hovered over
         private static Control controlMouseDown; // The control which the mouse was pressed on
@@ -816,7 +821,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         private int dialogX, dialogY;
 
         // Colors
-        private ColorValue topLeftColor, topRightColor, bottomLeftColor, bottomRightColor;
+        private Color topLeftColor, topRightColor, bottomLeftColor, bottomRightColor;
 
         // Fonts/Textures
         private readonly ArrayList textureList = new ArrayList(); // Index into texture cache
@@ -894,8 +899,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Called to set dialog's border colors</summary>
-        public void SetBackgroundColors(ColorValue topLeft, ColorValue topRight, ColorValue bottomLeft,
-            ColorValue bottomRight)
+        public void SetBackgroundColors(Color topLeft, Color topRight, Color bottomLeft,
+            Color bottomRight)
         {
             topLeftColor = topLeft;
             topRightColor = topRight;
@@ -905,7 +910,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Called to set dialog's border colors</summary>
-        public void SetBackgroundColors(ColorValue allCorners)
+        public void SetBackgroundColors(Color allCorners)
         {
             SetBackgroundColors(allCorners, allCorners, allCorners, allCorners);
         }
@@ -1946,7 +1951,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Draw a rectangle</summary>
-        public void DrawRectangle(Rectangle rect, ColorValue color)
+        public void DrawRectangle(Rectangle rect, Color color)
         {
             // Offset the rectangle
             rect.Offset(dialogX, dialogY);
@@ -4884,10 +4889,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             firstVisible = 0;
             blinkTime = NativeMethods.GetCaretBlinkTime() * 0.001f;
             lastBlink = FrameworkTimer.GetAbsoluteTime();
-            textColor = new ColorValue(0.06f, 0.06f, 0.06f, 1.0f);
-            selectedTextColor = new ColorValue(1.0f, 1.0f, 1.0f, 1.0f);
-            selectedBackColor = new ColorValue(0.15f, 0.196f, 0.36f, 1.0f);
-            caretColor = new ColorValue(0, 0, 0, 1.0f);
+            textColor = new Color(0.06f, 0.06f, 0.06f, 1.0f);
+            selectedTextColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+            selectedBackColor = new Color(0.15f, 0.196f, 0.36f, 1.0f);
+            caretColor = new Color(0, 0, 0, 1.0f);
             caretPosition = textData.SelectionStart = 0;
             isInsertMode = true;
             isMouseDragging = false;
@@ -5523,10 +5528,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         protected int caretPosition; // Caret position, in characters
         protected bool isInsertMode; // If true, control is in insert mode. Else, overwrite mode.
         protected int firstVisible; // First visible character in the edit control
-        protected ColorValue textColor; // Text color
-        protected ColorValue selectedTextColor; // Selected Text color
-        protected ColorValue selectedBackColor; // Selected background color
-        protected ColorValue caretColor; // Caret color
+        protected Color textColor; // Text color
+        protected Color selectedTextColor; // Selected Text color
+        protected Color selectedBackColor; // Selected background color
+        protected Color caretColor; // Caret color
 
         // Mouse-specific
         protected bool isMouseDragging; // True to indicate the drag is in progress
@@ -5555,25 +5560,25 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Update the text color</summary>
-        public void SetTextColor(ColorValue color)
+        public void SetTextColor(Color color)
         {
             textColor = color;
         }
 
         /// <summary>Update the text selected color</summary>
-        public void SetSelectedTextColor(ColorValue color)
+        public void SetSelectedTextColor(Color color)
         {
             selectedTextColor = color;
         }
 
         /// <summary>Update the selected background color</summary>
-        public void SetSelectedBackColor(ColorValue color)
+        public void SetSelectedBackColor(Color color)
         {
             selectedBackColor = color;
         }
 
         /// <summary>Update the caret color</summary>
-        public void SetCaretColor(ColorValue color)
+        public void SetCaretColor(Color color)
         {
             caretColor = color;
         }

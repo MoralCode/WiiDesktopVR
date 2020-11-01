@@ -10,6 +10,7 @@ using System;
 using System.Collections;
 using System.Drawing;
 using System.Windows.Forms;
+using SharpDX.Direct3D9;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {

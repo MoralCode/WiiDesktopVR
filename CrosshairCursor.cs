@@ -1,4 +1,7 @@
 using System;
+using SharpDX.Mathematics;
+using SharpDX.Direct3D9;
+using SharpDX;
 
 namespace WiiDesktopVR
 {
@@ -17,12 +20,11 @@ namespace WiiDesktopVR
 
         public CrosshairCursor(Device dev, int color, float size)
         {
-            cursorBuffer = new VertexBuffer(typeof(CustomVertex.PositionColored), 4 + 6 * circleSegments, dev, 0,
-                CustomVertex.PositionColored.Format, Pool.Managed);
-
+            cursorBuffer = new VertexBuffer(dev, 4 + 6 * circleSegments, typeof(CustomVertex.PositionColored), CustomVertex.PositionColored.Format, Pool.Managed);// 0,
+      
             CustomVertex.PositionColored[] verts;
             verts = (CustomVertex.PositionColored[]) cursorBuffer.Lock(0,
-                0); // Lock the buffer (which will return our structs)
+                0, LockFlags.None); // Lock the buffer (which will return our structs)
             verts[0].Position = new Vector3(-size, 0.0f, 0.0f);
             verts[0].Color = color;
             verts[1].Position = new Vector3(size, 0.0f, 0.0f);
@@ -82,7 +84,7 @@ namespace WiiDesktopVR
 
         public void Render(Device device)
         {
-            device.Transform.World = Matrix.Translation(new Vector3(X, Y, 0.0f));
+            device.SetTransform(TransformState.World, Matrix.Translation(new Vector3(X, Y, 0.0f)));
             device.SetStreamSource(0, cursorBuffer, 0);
             device.VertexFormat = CustomVertex.PositionColored.Format;
             device.DrawPrimitives(PrimitiveType.LineList, 0, 2 + 3 * circleSegments);

@@ -9,6 +9,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using SharpDX.Direct3D9;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
