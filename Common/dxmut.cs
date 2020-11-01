@@ -5,118 +5,78 @@
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //--------------------------------------------------------------------------------------
+
 using System;
-using System.Collections;
-using Microsoft.DirectX;
-using Microsoft.DirectX.Direct3D;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.Reflection;
+using System.Resources;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
     /// <summary>
-    /// Managed Utility Framework Class
+    ///     Managed Utility Framework Class
     /// </summary>
     public sealed class Framework : IDisposable
     {
+        #region Creation
 
-        #region Class Data
-        // Constants for command line arguments
-        private const string CmdAdapter = "adapter";
-        private const string CmdWindowed = "windowed";
-        private const string CmdFullscreen = "fullscreen";
-        private const string CmdForceHardware = "forcehal";
-        private const string CmdForceRef = "forceref";
-        private const string CmdPureHwVp = "forcepurehwvp";
-        private const string CmdForceHwVp = "forcehwvp";
-        private const string CmdForceSwVp = "forceswvp";
-        private const string CmdWidth = "width";
-        private const string CmdHeight = "height";
-        private const string CmdStartx = "startx";
-        private const string CmdStarty = "starty";
-        private const string CmdConstantFrame = "constantframetime";
-        private const string CmdQuitAfterFrame = "quitafterframe";
-        private const string CmdNoErrorBoxes = "noerrormsgboxes";
-        private const string CmdNoStats = "nostats";
-
-        // Delegate used for disposing application
-        private delegate void DisposeDelegate();
-
-        // Constants for minimum window size
-        private const int MinimumWindowSizeX = 200;
-        private const int MinimumWindowSizeY = 200;
-        public const int DefaultSizeWidth = 640;
-        public const int DefaultSizeHeight = 480;
-        // Default starting size
-        private static readonly System.Drawing.Size DefaultStartingSize = new System.Drawing.Size(DefaultSizeWidth, DefaultSizeHeight);
-        internal static readonly System.Drawing.Size MinWindowSize = new System.Drawing.Size(MinimumWindowSizeX, MinimumWindowSizeY);
-        public static readonly IntPtr TrueIntPtr = new IntPtr(1);
-        private const string WindowClassName = "ManagedDirect3DWindowClass";
-
-        // What about the stored data?
-        private FrameworkData State;
-        // Last shown error
-        private Exception lastDisplayedMessage = null;
-        // Has the framework been disposed already
-        private bool isDisposed = false;
-        // Did the toggle fullscreen happen when maximized?
-        private bool toggleMaximized = false;
-        #endregion
-
-        #region Creation 
         /// <summary>
-        /// Constructor, init data here
+        ///     Constructor, init data here
         /// </summary>
         public Framework()
         {
             State = new FrameworkData();
         }
+
         #endregion
 
-        #region Setting up callbacks
-        // Interface 'callbacks'
-        public void SetCallbackInterface(IFrameworkCallback callback) { State.CallbackInterface = callback; }
-        public void SetDeviceCreationInterface(IDeviceCreation callback) { State.DeviceCreationInterface = callback; }
-
-        // Event 'callbacks'
-
-        /// <summary>The event fired for disposing of the device</summary>
-        public event EventHandler Disposing; 
-        /// <summary>The event fired for when the device is lost</summary>
-        public event EventHandler DeviceLost; 
-        /// <summary>The event fired for when the device is created</summary>
-        public event DeviceEventHandler DeviceCreated; 
-        /// <summary>The event fired for when the device is reset</summary>
-        public event DeviceEventHandler DeviceReset; 
-
-        public void SetWndProcCallback(WndProcCallback callback) { State.WndProcFunction = callback; }
-        #endregion
+        /// <summary>Determines if the adapter can automatically change monitors</summary>
+        public bool CanAutomaticallyChangeMonitor
+        {
+            get => State.CanAutoChangeAdapter;
+            set => State.CanAutoChangeAdapter = value;
+        }
 
         /// <summary>
-        /// Optionally parses the command line and sets if default hotkeys are handled
-        /// Possible command line parameters are:
-        /// -adapter:#              forces app to use this adapter # (fails if the adapter doesn't exist)
-        /// -windowed               forces app to start windowed
-        /// -fullscreen             forces app to start full screen
-        /// -forceHardware          forces app to use Hardware (fails if Hardware doesn't exist)
-        /// -forceReference         forces app to use Reference (fails if Reference doesn't exist)
-        /// -forcepurehwvp          forces app to use pure HWVP (fails if device doesn't support it)
-        /// -forcehwvp              forces app to use HWVP (fails if device doesn't support it)
-        /// -forceswvp              forces app to use SWVP 
-        /// -width:#                forces app to use # for width. for full screen, it will pick the closest possible supported mode
-        /// -height:#               forces app to use # for height. for full screen, it will pick the closest possible supported mode
-        /// -startx:#               forces app to use # for the x coord of the window position for windowed mode
-        /// -starty:#               forces app to use # for the y coord of the window position for windowed mode
-        /// -constantframetime:#    forces app to use constant frame time, where # is the time/frame in seconds
-        /// -quitafterframe:x       forces app to quit after # frames
-        /// -noerrormsgboxes        prevents the display of message boxes generated by the framework so the application can be run without user interaction
-        /// -nostats                prevents the display of the stats
-        /// 
-        /// Hotkeys handled by default are:
-        /// ESC                 app exits
-        /// Alt-Enter           toggle between full screen & windowed
-        /// F2                  device selection dialog
-        /// F3                  toggle Hardware/Reference
-        /// F8                  toggle wire-frame mode
-        /// Pause               pauses time
+        ///     Exit code from the framework
+        /// </summary>
+        public int ExitCode => State.ApplicationExitCode;
+
+        /// <summary>
+        ///     Optionally parses the command line and sets if default hotkeys are handled
+        ///     Possible command line parameters are:
+        ///     -adapter:#              forces app to use this adapter # (fails if the adapter doesn't exist)
+        ///     -windowed               forces app to start windowed
+        ///     -fullscreen             forces app to start full screen
+        ///     -forceHardware          forces app to use Hardware (fails if Hardware doesn't exist)
+        ///     -forceReference         forces app to use Reference (fails if Reference doesn't exist)
+        ///     -forcepurehwvp          forces app to use pure HWVP (fails if device doesn't support it)
+        ///     -forcehwvp              forces app to use HWVP (fails if device doesn't support it)
+        ///     -forceswvp              forces app to use SWVP
+        ///     -width:#                forces app to use # for width. for full screen, it will pick the closest possible supported
+        ///     mode
+        ///     -height:#               forces app to use # for height. for full screen, it will pick the closest possible
+        ///     supported mode
+        ///     -startx:#               forces app to use # for the x coord of the window position for windowed mode
+        ///     -starty:#               forces app to use # for the y coord of the window position for windowed mode
+        ///     -constantframetime:#    forces app to use constant frame time, where # is the time/frame in seconds
+        ///     -quitafterframe:x       forces app to quit after # frames
+        ///     -noerrormsgboxes        prevents the display of message boxes generated by the framework so the application can be
+        ///     run without user interaction
+        ///     -nostats                prevents the display of the stats
+        ///     Hotkeys handled by default are:
+        ///     ESC                 app exits
+        ///     Alt-Enter           toggle between full screen & windowed
+        ///     F2                  device selection dialog
+        ///     F3                  toggle Hardware/Reference
+        ///     F8                  toggle wire-frame mode
+        ///     Pause               pauses time
         /// </summary>
         public void Initialize(bool isParsingCommandLine, bool handleDefaultKeys, bool showMessageBoxOnError)
         {
@@ -134,43 +94,47 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Reset the timer period (ignore any failures)
             try
-            { NativeMethods.timeBeginPeriod(1); }
-            catch { System.Diagnostics.Debugger.Log(9, string.Empty, "Could not set time period.\r\n" ); }
-
-            if (isParsingCommandLine)
             {
-                ParseCommandLine();
+                NativeMethods.timeBeginPeriod(1);
             }
+            catch
+            {
+                Debugger.Log(9, string.Empty, "Could not set time period.\r\n");
+            }
+
+            if (isParsingCommandLine) ParseCommandLine();
 
             // Reset the timer
             FrameworkTimer.Reset();
             State.IsInited = true;
-
         }
 
         /// <summary>
-        /// Parses the command line for parameters.  See Initialize() for list 
+        ///     Parses the command line for parameters.  See Initialize() for list
         /// </summary>
         private void ParseCommandLine()
         {
-            string[] args = System.Environment.GetCommandLineArgs(); // Ignore the first one since that's the executable name
+            var args = Environment.GetCommandLineArgs(); // Ignore the first one since that's the executable name
 
             // Go through each argument, skipping the first one
-            for (int i = 1; i < args.Length; i++)
+            for (var i = 1; i < args.Length; i++)
             {
-                string argument = string.Empty;
-                if ((args[i].StartsWith("-")) || (args[i].StartsWith("-")))
-                {
+                var argument = string.Empty;
+                if (args[i].StartsWith("-") || args[i].StartsWith("-"))
                     argument = args[i].Substring(1, args[i].Length - 1);
-                }
                 else
                     continue;
 
                 if (argument.ToLower().StartsWith(CmdAdapter + ":"))
                 {
                     try
-                    { State.OverrideAdapterOrdinal = int.Parse(argument.Substring(CmdAdapter.Length + 1, argument.Length - (CmdAdapter.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideAdapterOrdinal = int.Parse(argument.Substring(CmdAdapter.Length + 1,
+                            argument.Length - (CmdAdapter.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (string.Compare(argument, CmdWindowed, true) == 0)
                 {
@@ -203,36 +167,60 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 else if (argument.ToLower().StartsWith(CmdWidth + ":"))
                 {
                     try
-                    { State.OverrideWidth = int.Parse(argument.Substring(CmdWidth.Length + 1, argument.Length - (CmdWidth.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideWidth = int.Parse(argument.Substring(CmdWidth.Length + 1,
+                            argument.Length - (CmdWidth.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (argument.ToLower().StartsWith(CmdHeight + ":"))
                 {
                     try
-                    { State.OverrideHeight = int.Parse(argument.Substring(CmdHeight.Length + 1, argument.Length - (CmdHeight.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideHeight = int.Parse(argument.Substring(CmdHeight.Length + 1,
+                            argument.Length - (CmdHeight.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (argument.ToLower().StartsWith(CmdStartx + ":"))
                 {
                     try
-                    { State.OverrideStartX = int.Parse(argument.Substring(CmdStartx.Length + 1, argument.Length - (CmdStartx.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideStartX = int.Parse(argument.Substring(CmdStartx.Length + 1,
+                            argument.Length - (CmdStartx.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (argument.ToLower().StartsWith(CmdStarty + ":"))
                 {
                     try
-                    { State.OverrideStartY = int.Parse(argument.Substring(CmdStarty.Length + 1, argument.Length - (CmdStarty.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideStartY = int.Parse(argument.Substring(CmdStarty.Length + 1,
+                            argument.Length - (CmdStarty.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (argument.ToLower().StartsWith(CmdConstantFrame))
                 {
-                    float timePerFrame = 0.033f; // Default to this time
+                    var timePerFrame = 0.033f; // Default to this time
                     try
                     {
-                        if ( (argument.Length > CmdConstantFrame.Length) )
-                            timePerFrame = float.Parse(argument.Substring(CmdConstantFrame.Length + 1, argument.Length - (CmdConstantFrame.Length + 1))); 
+                        if (argument.Length > CmdConstantFrame.Length)
+                            timePerFrame = float.Parse(argument.Substring(CmdConstantFrame.Length + 1,
+                                argument.Length - (CmdConstantFrame.Length + 1)));
                     }
-                    catch (FormatException){}
+                    catch (FormatException)
+                    {
+                    }
+
                     State.OverrideConstantTimePerFrame = timePerFrame;
                     State.IsOverridingConstantFrameTime = true;
                     SetConstantFrameTime(true, timePerFrame);
@@ -240,8 +228,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 else if (argument.ToLower().StartsWith(CmdQuitAfterFrame + ":"))
                 {
                     try
-                    { State.OverrideQuitAfterFrame = int.Parse(argument.Substring(CmdQuitAfterFrame.Length + 1, argument.Length - (CmdQuitAfterFrame.Length + 1))); }
-                    catch (FormatException){}
+                    {
+                        State.OverrideQuitAfterFrame = int.Parse(argument.Substring(CmdQuitAfterFrame.Length + 1,
+                            argument.Length - (CmdQuitAfterFrame.Length + 1)));
+                    }
+                    catch (FormatException)
+                    {
+                    }
                 }
                 else if (string.Compare(argument, CmdNoErrorBoxes, true) == 0)
                 {
@@ -252,17 +245,19 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     State.AreStatsHidden = true;
                 }
                 else
-                    System.Diagnostics.Debugger.Log(9, string.Empty, string.Format("Unrecognized flag: {0}\r\n", argument));
+                {
+                    Debugger.Log(9, string.Empty, string.Format("Unrecognized flag: {0}\r\n", argument));
+                }
             }
         }
 
         /// <summary>
-        /// Creates a window with the specified title, icon, menu, and starting position.  If Init hasn't been
-        /// called, this will call with default params.  Instead of calling this, you can call SetWindow
-        /// to use an existing window
+        ///     Creates a window with the specified title, icon, menu, and starting position.  If Init hasn't been
+        ///     called, this will call with default params.  Instead of calling this, you can call SetWindow
+        ///     to use an existing window
         /// </summary>
-        public void CreateWindow(string windowTitle, System.Drawing.Icon icon, 
-            System.Windows.Forms.MainMenu menu, int x, int y)
+        public void CreateWindow(string windowTitle, Icon icon,
+            MainMenu menu, int x, int y)
         {
             if (State.IsInsideDeviceCallback)
                 throw new InvalidOperationException("You cannot create a window from inside a callback.");
@@ -273,9 +268,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If Init was already called and failed, fail again
                 if (State.WasInitCalled)
-                {
                     throw new InvalidOperationException("Initialize was already called and failed.");
-                }
 
                 // Call initialize with default params
                 Initialize(true, true, true);
@@ -287,33 +280,34 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // Override the window's initial size and position if there were cmd line args
                 if (State.OverrideStartX != -1)
                 {
-                    State.DefaultStartingLocation = System.Windows.Forms.FormStartPosition.Manual;
+                    State.DefaultStartingLocation = FormStartPosition.Manual;
                     x = State.OverrideStartX;
                 }
+
                 if (State.OverrideStartY != -1)
                 {
-                    State.DefaultStartingLocation = System.Windows.Forms.FormStartPosition.Manual;
+                    State.DefaultStartingLocation = FormStartPosition.Manual;
                     y = State.OverrideStartY;
                 }
 
                 // Create the new window
-                GraphicsWindow renderWindow = new GraphicsWindow(this);
+                var renderWindow = new GraphicsWindow(this);
                 // Hook the events
                 HookEvents(renderWindow);
                 // Are we in the default start location?
-                if (State.DefaultStartingLocation == System.Windows.Forms.FormStartPosition.WindowsDefaultLocation)
+                if (State.DefaultStartingLocation == FormStartPosition.WindowsDefaultLocation)
                 {
                     State.IsWindowCreatedWithDefaultPositions = true;
-                    renderWindow.StartPosition = System.Windows.Forms.FormStartPosition.WindowsDefaultLocation;
+                    renderWindow.StartPosition = FormStartPosition.WindowsDefaultLocation;
                 }
                 else
                 {
                     State.IsWindowCreatedWithDefaultPositions = false;
-                    renderWindow.Location = new System.Drawing.Point(x, y);
+                    renderWindow.Location = new Point(x, y);
                 }
 
                 // Calculate the window size
-                System.Drawing.Size windowSize = DefaultStartingSize;
+                var windowSize = DefaultStartingSize;
                 if (State.OverrideWidth != 0)
                     windowSize.Width = State.OverrideWidth;
                 if (State.OverrideHeight != 0)
@@ -326,7 +320,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 renderWindow.Text = windowTitle;
 
                 // Set current cursor
-                System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
+                Cursor.Current = Cursors.Default;
 
                 // Get the window's rectangles
                 renderWindow.Visible = false;
@@ -343,18 +337,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Calls into CreateWindow with default paramters
+        ///     Calls into CreateWindow with default paramters
         /// </summary>
         public void CreateWindow(string windowTitle)
         {
             CreateWindow(windowTitle, LoadFirstIconFromResource(), null, -1, -1);
         }
+
         /// <summary>
-        /// Sets a previously created window for the framework to use.  If Init has
-        /// not already been called, it will call it with default parameters.  Instead
-        /// of calling this you can call CreateWindow to create a new window.
+        ///     Sets a previously created window for the framework to use.  If Init has
+        ///     not already been called, it will call it with default parameters.  Instead
+        ///     of calling this you can call CreateWindow to create a new window.
         /// </summary>
-        public void SetWindow(System.Windows.Forms.Control windowFocus, System.Windows.Forms.Control windowDeviceFullscreen,
+        public void SetWindow(System.Windows.Forms.Control windowFocus,
+            System.Windows.Forms.Control windowDeviceFullscreen,
             System.Windows.Forms.Control windowDeviceWindowed, bool handleMessages)
         {
             if (State.IsInsideDeviceCallback)
@@ -365,26 +361,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // To avoid confusion, we do not allow any window handles to be null here.  The
             // caller must pass in valid window handles for all three parameters.  The same
             // window handles may be used for more than one parameter.
-            if ((windowDeviceFullscreen == null) || (windowDeviceWindowed == null)
-                || (windowFocus == null))
-            {
+            if (windowDeviceFullscreen == null || windowDeviceWindowed == null
+                                               || windowFocus == null)
                 throw new InvalidOperationException("You must pass in valid window handles.");
-            }
 
             if (handleMessages)
-            {
                 // Use the static windows procedure defined here
                 HookEvents(windowFocus);
-            }
 
             // Are we inited?
             if (!State.IsInited)
             {
                 // If Init was already called and failed, fail again
                 if (State.WasInitCalled)
-                {
                     throw new InvalidOperationException("Initialize was already called and failed.");
-                }
 
                 // Call initialize with default params
                 Initialize(true, true, true);
@@ -403,11 +393,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
 
         /// <summary>
-        /// Sets a previously created window for the framework to use.  If Init has
-        /// not already been called, it will call it with default parameters.  Instead
-        /// of calling this you can call CreateWindow to create a new window.
+        ///     Sets a previously created window for the framework to use.  If Init has
+        ///     not already been called, it will call it with default parameters.  Instead
+        ///     of calling this you can call CreateWindow to create a new window.
         /// </summary>
-        public void SetWinformWindow(System.Windows.Forms.Control windowFocus, System.Windows.Forms.Control windowDeviceFullscreen,
+        public void SetWinformWindow(System.Windows.Forms.Control windowFocus,
+            System.Windows.Forms.Control windowDeviceFullscreen,
             System.Windows.Forms.Control windowDeviceWindowed)
         {
             if (State.IsInsideDeviceCallback)
@@ -418,20 +409,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // To avoid confusion, we do not allow any controls to be null here.  The
             // caller must pass in valid windows for all three parameters.  The same
             // window may be used for more than one parameter.
-            if ((windowDeviceFullscreen == null) || (windowDeviceWindowed == null)
-                || (windowFocus == null))
-            {
+            if (windowDeviceFullscreen == null || windowDeviceWindowed == null
+                                               || windowFocus == null)
                 throw new InvalidOperationException("You must pass in valid window handles.");
-            }
 
             // Are we inited?
             if (!State.IsInited)
             {
                 // If Init was already called and failed, fail again
                 if (State.WasInitCalled)
-                {
                     throw new InvalidOperationException("Initialize was already called and failed.");
-                }
 
                 // Call initialize with default params
                 Initialize(true, true, true);
@@ -445,9 +432,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Creates a Direct3D device.  If CreateWindow or SetWindow has not already
-        /// been called, it will call CreateWindow with default parameters.
-        /// Instead of calling this, you can call SetDevice or CreateDeviceFromSettings
+        ///     Creates a Direct3D device.  If CreateWindow or SetWindow has not already
+        ///     been called, it will call CreateWindow with default parameters.
+        ///     Instead of calling this, you can call SetDevice or CreateDeviceFromSettings
         /// </summary>
         public void CreateDevice(uint adapterOridinal, bool windowed, int suggestedWidth,
             int suggestedHeight, IDeviceCreation callback)
@@ -466,9 +453,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If CreateWindow or SetWindow was already called and failed, then fail again.
                 if (State.WasWindowCreateCalled)
-                {
                     throw new InvalidOperationException("CreateWindow was already called and failed.");
-                }
 
                 // Create a default window
                 CreateWindow("Direct3D Window", null, null, -1, -1);
@@ -478,7 +463,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             Enumeration.Enumerate(State.DeviceCreationInterface);
 
             // Set up the match options
-            MatchOptions match = new MatchOptions();
+            var match = new MatchOptions();
             match.AdapterOrdinal = MatchType.PreserveInput;
             match.DeviceType = MatchType.IgnoreInput;
             match.Windowed = MatchType.PreserveInput;
@@ -496,7 +481,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             match.PresentInterval = MatchType.IgnoreInput;
 
             // Get the device settings
-            DeviceSettings settings = new DeviceSettings();
+            var settings = new DeviceSettings();
             settings.presentParams = new PresentParameters();
             settings.AdapterOrdinal = adapterOridinal;
             settings.presentParams.Windowed = windowed;
@@ -509,14 +494,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (State.OverrideHeight != 0)
                 settings.presentParams.BackBufferHeight = State.OverrideHeight;
             if (State.OverrideAdapterOrdinal != -1)
-                settings.AdapterOrdinal = (uint)State.OverrideAdapterOrdinal;
-            
+                settings.AdapterOrdinal = (uint) State.OverrideAdapterOrdinal;
+
             if (State.IsOverridingFullScreen)
             {
                 settings.presentParams.Windowed = false;
-                if ((State.OverrideWidth == 0) && (State.OverrideHeight == 0))
+                if (State.OverrideWidth == 0 && State.OverrideHeight == 0)
                     match.Resolution = MatchType.IgnoreInput;
             }
+
             if (State.IsOverridingWindowed)
                 settings.presentParams.Windowed = true;
 
@@ -525,21 +511,25 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 settings.DeviceType = DeviceType.Hardware;
                 match.DeviceType = MatchType.PreserveInput;
             }
+
             if (State.IsOverridingForceReference)
             {
                 settings.DeviceType = DeviceType.Reference;
                 match.DeviceType = MatchType.PreserveInput;
             }
+
             if (State.IsOverridingForcePureHardwareVertexProcessing)
             {
                 settings.BehaviorFlags = CreateFlags.HardwareVertexProcessing | CreateFlags.PureDevice;
                 match.VertexProcessing = MatchType.PreserveInput;
             }
+
             if (State.IsOverridingForceHardwareVertexProcessing)
             {
                 settings.BehaviorFlags = CreateFlags.HardwareVertexProcessing;
                 match.VertexProcessing = MatchType.PreserveInput;
             }
+
             if (State.IsOverridingForceSoftwareVertexProcessing)
             {
                 settings.BehaviorFlags = CreateFlags.SoftwareVertexProcessing;
@@ -550,7 +540,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 settings = FindValidDeviceSettings(settings, match);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 DisplayErrorMessage(e);
                 throw;
@@ -560,7 +550,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // let the app change the settings
             if (State.DeviceCreationInterface != null)
             {
-                Caps c = Manager.GetDeviceCaps((int)settings.AdapterOrdinal, settings.DeviceType);
+                Caps c = Manager.GetDeviceCaps((int) settings.AdapterOrdinal, settings.DeviceType);
                 State.DeviceCreationInterface.ModifyDeviceSettings(settings, c);
             }
 
@@ -571,24 +561,24 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
 
         /// <summary>
-        /// Creates a Direct3D device.  If CreateWindow or SetWindow has not already
-        /// been called, it will call CreateWindow with default parameters.
-        /// Instead of calling this, you can call SetDevice or CreateDeviceFromSettings
-        /// This is the CLS compliant version
+        ///     Creates a Direct3D device.  If CreateWindow or SetWindow has not already
+        ///     been called, it will call CreateWindow with default parameters.
+        ///     Instead of calling this, you can call SetDevice or CreateDeviceFromSettings
+        ///     This is the CLS compliant version
         /// </summary>
         public void CreateDevice(int adapterOridinal, bool windowed, int suggestedWidth,
             int suggestedHeight, IDeviceCreation callback)
         {
-            CreateDevice((uint)adapterOridinal, windowed, suggestedWidth,
-            suggestedHeight, callback);
+            CreateDevice((uint) adapterOridinal, windowed, suggestedWidth,
+                suggestedHeight, callback);
         }
 
 
         /// <summary>
-        /// Passes a previously created Direct3D device for use by the framework.  
-        /// If CreateWindow() has not already been called, it will call it with the 
-        /// default parameters.  Instead of calling this, you can call CreateDevice() or 
-        /// CreateDeviceFromSettings() 
+        ///     Passes a previously created Direct3D device for use by the framework.
+        ///     If CreateWindow() has not already been called, it will call it with the
+        ///     default parameters.  Instead of calling this, you can call CreateDevice() or
+        ///     CreateDeviceFromSettings()
         /// </summary>
         public void SetDevice(Device device)
         {
@@ -603,30 +593,28 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If CreateWindow or SetWindow was already called and failed, then fail again.
                 if (State.WasWindowCreateCalled)
-                {
                     throw new InvalidOperationException("CreateWindow was already called and failed.");
-                }
 
                 // Create a default window
                 CreateWindow("Direct3D Window", null, null, -1, -1);
             }
 
-            DeviceSettings deviceSettings = new DeviceSettings();
+            var deviceSettings = new DeviceSettings();
 
             // Get the present parameters from the swap chain
-            using(Surface backBuffer = device.GetBackBuffer(0, 0, BackBufferType.Mono))
+            using (Surface backBuffer = device.GetBackBuffer(0, 0, BackBufferType.Mono))
             {
                 using (SwapChain swap = backBuffer.GetContainer(InterfaceGuid.SwapChain) as SwapChain)
                 {
                     deviceSettings.presentParams = swap.PresentParameters;
-                    System.Diagnostics.Debug.Assert(deviceSettings.presentParams != null, "You must have valid present parameters here.");
+                    Debug.Assert(deviceSettings.presentParams != null, "You must have valid present parameters here.");
                 }
             }
 
             DeviceCreationParameters creationParams = device.CreationParameters;
 
             // Fill out the device settings structure now
-            deviceSettings.AdapterOrdinal = (uint)creationParams.AdapterOrdinal;    
+            deviceSettings.AdapterOrdinal = (uint) creationParams.AdapterOrdinal;
             deviceSettings.DeviceType = creationParams.DeviceType;
             deviceSettings.AdapterFormat = FindAdapterFormat(deviceSettings.AdapterOrdinal,
                 deviceSettings.DeviceType, deviceSettings.presentParams.BackBufferFormat,
@@ -638,10 +626,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Tells the framework to change to a device created from the passed in device settings
-        /// If CreateWindow() has not already been called, it will call it with the 
-        /// default parameters.  Instead of calling this, you can call CreateDevice() 
-        /// or SetDevice() 
+        ///     Tells the framework to change to a device created from the passed in device settings
+        ///     If CreateWindow() has not already been called, it will call it with the
+        ///     default parameters.  Instead of calling this, you can call CreateDevice()
+        ///     or SetDevice()
         /// </summary>
         public void CreateDeviceFromSettings(DeviceSettings deviceSettings, bool preserveInput)
         {
@@ -653,9 +641,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If CreateWindow or SetWindow was already called and failed, then fail again.
                 if (State.WasWindowCreateCalled)
-                {
                     throw new InvalidOperationException("CreateWindow was already called and failed.");
-                }
 
                 // Create a default window
                 CreateWindow("Direct3D Window", null, null, -1, -1);
@@ -664,7 +650,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (!preserveInput)
             {
                 // If not preserving the input, the find the closest valid to it
-                MatchOptions match = new MatchOptions();
+                var match = new MatchOptions();
                 match.AdapterOrdinal = MatchType.ClosestToInput;
                 match.DeviceType = MatchType.ClosestToInput;
                 match.Windowed = MatchType.ClosestToInput;
@@ -685,27 +671,32 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 {
                     deviceSettings = FindValidDeviceSettings(deviceSettings, match);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     // Display any error message
                     DisplayErrorMessage(e);
                     throw;
                 }
+
                 // Change to a Direct3D device created from the new device settings.  
                 // If there is an existing device, then either reset or recreate the scene
                 ChangeDevice(deviceSettings, null, false);
             }
         }
-        /// <summary>
-        /// Tells the framework to change to a device created from the passed in device settings
-        /// If CreateWindow() has not already been called, it will call it with the 
-        /// default parameters.  Instead of calling this, you can call CreateDevice() 
-        /// or SetDevice() 
-        /// </summary>
-        public void CreateDeviceFromSettings(DeviceSettings deviceSettings) { CreateDeviceFromSettings(deviceSettings, false); }
 
         /// <summary>
-        /// Toggle between full screen and windowed
+        ///     Tells the framework to change to a device created from the passed in device settings
+        ///     If CreateWindow() has not already been called, it will call it with the
+        ///     default parameters.  Instead of calling this, you can call CreateDevice()
+        ///     or SetDevice()
+        /// </summary>
+        public void CreateDeviceFromSettings(DeviceSettings deviceSettings)
+        {
+            CreateDeviceFromSettings(deviceSettings, false);
+        }
+
+        /// <summary>
+        ///     Toggle between full screen and windowed
         /// </summary>
         public void ToggleFullscreen()
         {
@@ -714,10 +705,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Get the current device settings and flip the windowed state then
             // find the closest valid device settings with this change
-            DeviceSettings currentSettings = State.CurrentDeviceSettings.Clone();
+            var currentSettings = State.CurrentDeviceSettings.Clone();
             currentSettings.presentParams.Windowed = !currentSettings.presentParams.Windowed;
 
-            MatchOptions match = new MatchOptions();
+            var match = new MatchOptions();
             match.AdapterOrdinal = MatchType.PreserveInput;
             match.DeviceType = MatchType.ClosestToInput;
             match.Windowed = MatchType.PreserveInput;
@@ -733,7 +724,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             match.RefreshRate = MatchType.IgnoreInput;
             match.PresentInterval = MatchType.IgnoreInput;
 
-            System.Drawing.Rectangle windowClient;
+            Rectangle windowClient;
             if (currentSettings.presentParams.Windowed)
                 windowClient = State.ClientRectangle;
             else
@@ -752,27 +743,21 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             try
             {
-                if ( (!currentSettings.presentParams.Windowed) && (State.IsMaximized))
+                if (!currentSettings.presentParams.Windowed && State.IsMaximized)
                 {
-                    if (WindowForm != null)
-                    {
-                        WindowForm.WindowState = System.Windows.Forms.FormWindowState.Normal;
-                    }
+                    if (WindowForm != null) WindowForm.WindowState = FormWindowState.Normal;
                     toggleMaximized = true;
                 }
+
                 currentSettings = FindValidDeviceSettings(currentSettings, match);
                 ChangeDevice(currentSettings, null, false);
-                Window.Size = State.WindowBoundsRectangle.Size;                
-                Window.Location = State.WindowBoundsRectangle.Location;                
+                Window.Size = State.WindowBoundsRectangle.Size;
+                Window.Location = State.WindowBoundsRectangle.Location;
                 if (currentSettings.presentParams.Windowed)
                 {
                     if (toggleMaximized)
-                    {
                         if (WindowForm != null)
-                        {
-                            WindowForm.WindowState = System.Windows.Forms.FormWindowState.Maximized;
-                        }
-                    }
+                            WindowForm.WindowState = FormWindowState.Maximized;
                     toggleMaximized = false;
                 }
             }
@@ -784,20 +769,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             }
         }
 
-        
+
         /// <summary>
-        /// Toggle between Hardware and Reference
+        ///     Toggle between Hardware and Reference
         /// </summary>
         public void ToggleReference()
         {
             // Get the current device settings 
-            DeviceSettings currentSettings = State.CurrentDeviceSettings.Clone();
+            var currentSettings = State.CurrentDeviceSettings.Clone();
             if (currentSettings.DeviceType == DeviceType.Hardware)
                 currentSettings.DeviceType = DeviceType.Reference;
             else if (currentSettings.DeviceType == DeviceType.Reference)
                 currentSettings.DeviceType = DeviceType.Hardware;
 
-            MatchOptions match = new MatchOptions();
+            var match = new MatchOptions();
             match.AdapterOrdinal = MatchType.PreserveInput;
             match.DeviceType = MatchType.PreserveInput;
             match.Windowed = MatchType.ClosestToInput;
@@ -838,19 +823,18 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// This function tries to find valid device settings based upon the input device settings 
-        /// struct and the match options.  For each device setting a match option in the 
-        /// MatchOptions struct specifies how the function makes decisions.  For example, if 
-        /// the caller wants a hardware device with a back buffer format of A2B10G10R10 but the 
-        /// hardware device on the system does not support A2B10G10R10 however a reference device is 
-        /// installed that does, then the function has a choice to either use the reference device
-        /// or to change to a back buffer format to compatible with the hardware device.  The match options lets the 
-        /// caller control how these choices are made.
-        /// 
-        /// Each match option must be one of the following types: 
-        /// MatchType.IgnoreInput: Uses the closest valid value to a default 
-        /// MatchType.PreserveInput: Uses the input without change, but may cause no valid device to be found
-        /// MatchType.ClosestToInput: Uses the closest valid value to the input 
+        ///     This function tries to find valid device settings based upon the input device settings
+        ///     struct and the match options.  For each device setting a match option in the
+        ///     MatchOptions struct specifies how the function makes decisions.  For example, if
+        ///     the caller wants a hardware device with a back buffer format of A2B10G10R10 but the
+        ///     hardware device on the system does not support A2B10G10R10 however a reference device is
+        ///     installed that does, then the function has a choice to either use the reference device
+        ///     or to change to a back buffer format to compatible with the hardware device.  The match options lets the
+        ///     caller control how these choices are made.
+        ///     Each match option must be one of the following types:
+        ///     MatchType.IgnoreInput: Uses the closest valid value to a default
+        ///     MatchType.PreserveInput: Uses the input without change, but may cause no valid device to be found
+        ///     MatchType.ClosestToInput: Uses the closest valid value to the input
         /// </summary>
         private DeviceSettings FindValidDeviceSettings(DeviceSettings settings, MatchOptions match)
         {
@@ -858,9 +842,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // options.  If the match option is set to ignore, then a optimal default value is used.
             // The default value may not exist on the system, but later this will be taken 
             // into account.
-            DeviceSettings optimalSettings = BuildOptimalDeviceSettings(settings, match);
-            float bestRanking = -1.0f;
-            EnumDeviceSettingsCombo bestDeviceSettingsCombo = new EnumDeviceSettingsCombo();
+            var optimalSettings = BuildOptimalDeviceSettings(settings, match);
+            var bestRanking = -1.0f;
+            var bestDeviceSettingsCombo = new EnumDeviceSettingsCombo();
 
             // Find the best combination of:
             //      Adapter Ordinal
@@ -871,54 +855,53 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // given what's available on the system and the match options combined with the device settings input.
             // This combination of settings is encapsulated by the EnumDeviceSettingsCombo class.
             DisplayMode adapterDesktopDisplayMode;
-            for (int iAdapter = 0; iAdapter < Enumeration.AdapterInformationList.Count; iAdapter++)
+            for (var iAdapter = 0; iAdapter < Enumeration.AdapterInformationList.Count; iAdapter++)
             {
-                EnumAdapterInformation adapterInfo = Enumeration.AdapterInformationList[iAdapter] as EnumAdapterInformation;
-                
+                var adapterInfo = Enumeration.AdapterInformationList[iAdapter] as EnumAdapterInformation;
+
                 // Get the desktop display mode of the adapter
-                adapterDesktopDisplayMode = Manager.Adapters[(int)adapterInfo.AdapterOrdinal].CurrentDisplayMode;
+                adapterDesktopDisplayMode = Manager.Adapters[(int) adapterInfo.AdapterOrdinal].CurrentDisplayMode;
 
                 // Enum all the device types supported by this adapter to find the best device settings
-                for (int iDeviceInfo = 0; iDeviceInfo < adapterInfo.deviceInfoList.Count; iDeviceInfo++)
+                for (var iDeviceInfo = 0; iDeviceInfo < adapterInfo.deviceInfoList.Count; iDeviceInfo++)
                 {
-                    EnumDeviceInformation deviceInfo = adapterInfo.deviceInfoList[iDeviceInfo] as EnumDeviceInformation;
-                    for (int iDeviceCombo = 0; iDeviceCombo<deviceInfo.deviceSettingsList.Count; iDeviceCombo++)
+                    var deviceInfo = adapterInfo.deviceInfoList[iDeviceInfo] as EnumDeviceInformation;
+                    for (var iDeviceCombo = 0; iDeviceCombo < deviceInfo.deviceSettingsList.Count; iDeviceCombo++)
                     {
-                        EnumDeviceSettingsCombo deviceSettings = deviceInfo.deviceSettingsList[iDeviceCombo] as EnumDeviceSettingsCombo;
+                        var deviceSettings = deviceInfo.deviceSettingsList[iDeviceCombo] as EnumDeviceSettingsCombo;
                         // If windowed mode the adapter format has to be the same as the desktop 
                         // display mode format so skip any that don't match
-                        if (deviceSettings.IsWindowed && (deviceSettings.AdapterFormat != adapterDesktopDisplayMode.Format))
+                        if (deviceSettings.IsWindowed &&
+                            deviceSettings.AdapterFormat != adapterDesktopDisplayMode.Format)
                             continue;
 
                         // Skip any combo that doesn't meet the preserve match options
-                        if(!DoesDeviceComboMatchPreserveOptions(deviceSettings, settings, match))
-                            continue;           
+                        if (!DoesDeviceComboMatchPreserveOptions(deviceSettings, settings, match))
+                            continue;
 
                         // Get a ranking number that describes how closely this device combo matches the optimal combo
-                        float curRanking = RankDeviceCombo(deviceSettings, optimalSettings, adapterDesktopDisplayMode);
+                        var curRanking = RankDeviceCombo(deviceSettings, optimalSettings, adapterDesktopDisplayMode);
 
                         // If this combo better matches the input device settings then save it
-                        if (curRanking > bestRanking )
+                        if (curRanking > bestRanking)
                         {
                             bestDeviceSettingsCombo = deviceSettings;
                             bestRanking = curRanking;
-                        }                
+                        }
                     }
                 }
             }
 
             // If no best device combination was found then fail
-            if (bestRanking == -1.0f)
-            {
-                throw new NoCompatibleDevicesException();
-            }
+            if (bestRanking == -1.0f) throw new NoCompatibleDevicesException();
 
             // Using the best device settings combo found, build valid device settings taking heed of 
             // the match options and the input device settings
             return BuildValidDeviceSettings(bestDeviceSettingsCombo, settings, match);
         }
+
         /// <summary>
-        /// Calls FindValidDeviceSettings with default match options (all ignore)
+        ///     Calls FindValidDeviceSettings with default match options (all ignore)
         /// </summary>
         private DeviceSettings FindValidDeviceSettings(DeviceSettings settings)
         {
@@ -926,29 +909,29 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// public helper function to build a device settings structure based upon the match 
-        /// options.  If the match option is set to ignore, then a optimal default value is used.
-        /// The default value may not exist on the system, but later this will be taken 
-        /// into account.
+        ///     public helper function to build a device settings structure based upon the match
+        ///     options.  If the match option is set to ignore, then a optimal default value is used.
+        ///     The default value may not exist on the system, but later this will be taken
+        ///     into account.
         /// </summary>
         private DeviceSettings BuildOptimalDeviceSettings(DeviceSettings settings, MatchOptions match)
         {
-            DeviceSettings optimal = new DeviceSettings(); // This will be what we return
+            var optimal = new DeviceSettings(); // This will be what we return
             optimal.presentParams = new PresentParameters();
 
             //---------------------
             // Adapter ordinal
             //---------------------    
             if (match.AdapterOrdinal == MatchType.IgnoreInput)
-                optimal.AdapterOrdinal = 0; 
+                optimal.AdapterOrdinal = 0;
             else
-                optimal.AdapterOrdinal = settings.AdapterOrdinal;      
+                optimal.AdapterOrdinal = settings.AdapterOrdinal;
 
             //---------------------
             // Device type
             //---------------------
             if (match.DeviceType == MatchType.IgnoreInput)
-                optimal.DeviceType = DeviceType.Hardware; 
+                optimal.DeviceType = DeviceType.Hardware;
             else
                 optimal.DeviceType = settings.DeviceType;
 
@@ -956,7 +939,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Windowed
             //---------------------
             if (match.Windowed == MatchType.IgnoreInput)
-                optimal.presentParams.Windowed = true; 
+                optimal.presentParams.Windowed = true;
             else
                 optimal.presentParams.Windowed = settings.presentParams.Windowed;
 
@@ -968,10 +951,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // If windowed, default to the desktop display mode
                 // If fullscreen, default to the desktop display mode for quick mode change or 
                 // default to Format.X8R8G8B8 if the desktop display mode is < 32bit
-                DisplayMode adapterDesktopMode = Manager.Adapters[(int)optimal.AdapterOrdinal].CurrentDisplayMode;
+                DisplayMode adapterDesktopMode = Manager.Adapters[(int) optimal.AdapterOrdinal].CurrentDisplayMode;
 
-                if (optimal.presentParams.Windowed || 
-                    ManagedUtility.GetColorChannelBits(adapterDesktopMode.Format) >= 8 )
+                if (optimal.presentParams.Windowed ||
+                    ManagedUtility.GetColorChannelBits(adapterDesktopMode.Format) >= 8)
                     optimal.AdapterFormat = adapterDesktopMode.Format;
                 else
                     optimal.AdapterFormat = Format.X8R8G8B8;
@@ -985,7 +968,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Vertex processing
             //---------------------
             if (match.VertexProcessing == MatchType.IgnoreInput)
-                optimal.BehaviorFlags = CreateFlags.HardwareVertexProcessing; 
+                optimal.BehaviorFlags = CreateFlags.HardwareVertexProcessing;
             else
                 optimal.BehaviorFlags = settings.BehaviorFlags;
 
@@ -996,14 +979,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If windowed, default to 640x480
                 // If fullscreen, default to the desktop res for quick mode change
-                if (optimal.presentParams.Windowed )
+                if (optimal.presentParams.Windowed)
                 {
                     optimal.presentParams.BackBufferWidth = DefaultSizeWidth;
                     optimal.presentParams.BackBufferHeight = DefaultSizeHeight;
                 }
                 else
                 {
-                    DisplayMode adapterDesktopMode = Manager.Adapters[(int)optimal.AdapterOrdinal].CurrentDisplayMode;
+                    DisplayMode adapterDesktopMode = Manager.Adapters[(int) optimal.AdapterOrdinal].CurrentDisplayMode;
 
                     optimal.presentParams.BackBufferWidth = adapterDesktopMode.Width;
                     optimal.presentParams.BackBufferHeight = adapterDesktopMode.Height;
@@ -1030,7 +1013,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 optimal.presentParams.BackBufferCount = 2; // Default to triple buffering for perf gain
             else
                 optimal.presentParams.BackBufferCount = settings.presentParams.BackBufferCount;
-   
+
             //---------------------
             // Multisample
             //---------------------
@@ -1043,7 +1026,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Swap effect
             //---------------------
             if (match.SwapEffect == MatchType.IgnoreInput)
-                optimal.presentParams.SwapEffect = SwapEffect.Discard; 
+                optimal.presentParams.SwapEffect = SwapEffect.Discard;
             else
                 optimal.presentParams.SwapEffect = settings.presentParams.SwapEffect;
 
@@ -1053,11 +1036,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (match.DepthFormat == MatchType.IgnoreInput &&
                 match.StencilFormat == MatchType.IgnoreInput)
             {
-                uint backBufferBits = ManagedUtility.GetColorChannelBits(optimal.presentParams.BackBufferFormat);
+                var backBufferBits = ManagedUtility.GetColorChannelBits(optimal.presentParams.BackBufferFormat);
                 if (backBufferBits >= 8)
-                    optimal.presentParams.AutoDepthStencilFormat = DepthFormat.D32; 
+                    optimal.presentParams.AutoDepthStencilFormat = DepthFormat.D32;
                 else
-                    optimal.presentParams.AutoDepthStencilFormat = DepthFormat.D16; 
+                    optimal.presentParams.AutoDepthStencilFormat = DepthFormat.D16;
             }
             else
             {
@@ -1090,7 +1073,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // but may introduce tearing.
                 // For full screen, default to PresentInterval.Default 
                 // which will wait for the vertical retrace period to prevent tearing.
-                if (optimal.presentParams.Windowed )
+                if (optimal.presentParams.Windowed)
                     optimal.presentParams.PresentationInterval = PresentInterval.Immediate;
                 else
                     optimal.presentParams.PresentationInterval = PresentInterval.Default;
@@ -1105,13 +1088,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
 
         /// <summary>
-        /// Builds valid device settings using the match options, the input device settings, and the 
-        /// best device settings combo found.
+        ///     Builds valid device settings using the match options, the input device settings, and the
+        ///     best device settings combo found.
         /// </summary>
-        private DeviceSettings BuildValidDeviceSettings(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings, MatchOptions match)
+        private DeviceSettings BuildValidDeviceSettings(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings,
+            MatchOptions match)
         {
-            DeviceSettings validSettings = new DeviceSettings();
-            DisplayMode adapterDesktopDisplayMode = Manager.Adapters[(int)deviceCombo.AdapterOrdinal].CurrentDisplayMode;
+            var validSettings = new DeviceSettings();
+            DisplayMode adapterDesktopDisplayMode =
+                Manager.Adapters[(int) deviceCombo.AdapterOrdinal].CurrentDisplayMode;
 
             // For each setting pick the best, taking into account the match options and 
             // what's supported by the device
@@ -1140,11 +1125,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Vertex processing
             //---------------------
             CreateFlags bestBehaviorFlags = 0;
-            if (match.VertexProcessing == MatchType.PreserveInput )   
+            if (match.VertexProcessing == MatchType.PreserveInput)
             {
                 bestBehaviorFlags = settings.BehaviorFlags;
             }
-            else if (match.VertexProcessing == MatchType.IgnoreInput )    
+            else if (match.VertexProcessing == MatchType.IgnoreInput)
             {
                 // The framework defaults to HWVP if available otherwise use SWVP
                 if (deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
@@ -1152,26 +1137,26 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 else
                     bestBehaviorFlags |= CreateFlags.SoftwareVertexProcessing;
             }
-            else 
+            else
             {
                 // Default to input, and fallback to SWVP if HWVP not available 
                 bestBehaviorFlags = settings.BehaviorFlags;
-                if ((!deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight) && 
-                    ( (bestBehaviorFlags & CreateFlags.HardwareVertexProcessing ) != 0 || 
-                    (bestBehaviorFlags & CreateFlags.MixedVertexProcessing) != 0) )
+                if (!deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight &&
+                    ((bestBehaviorFlags & CreateFlags.HardwareVertexProcessing) != 0 ||
+                     (bestBehaviorFlags & CreateFlags.MixedVertexProcessing) != 0))
                 {
-                    bestBehaviorFlags &= ~CreateFlags.HardwareVertexProcessing ;
+                    bestBehaviorFlags &= ~CreateFlags.HardwareVertexProcessing;
                     bestBehaviorFlags &= ~CreateFlags.MixedVertexProcessing;
                     bestBehaviorFlags |= CreateFlags.SoftwareVertexProcessing;
                 }
 
                 // One of these must be selected
-                if ((bestBehaviorFlags & CreateFlags.HardwareVertexProcessing ) == 0 &&
+                if ((bestBehaviorFlags & CreateFlags.HardwareVertexProcessing) == 0 &&
                     (bestBehaviorFlags & CreateFlags.MixedVertexProcessing) == 0 &&
-                    (bestBehaviorFlags & CreateFlags.SoftwareVertexProcessing) == 0 )
+                    (bestBehaviorFlags & CreateFlags.SoftwareVertexProcessing) == 0)
                 {
                     if (deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
-                        bestBehaviorFlags |= CreateFlags.HardwareVertexProcessing ;
+                        bestBehaviorFlags |= CreateFlags.HardwareVertexProcessing;
                     else
                         bestBehaviorFlags |= CreateFlags.SoftwareVertexProcessing;
                 }
@@ -1180,24 +1165,24 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Resolution
             //---------------------
-            DisplayMode bestDisplayMode = new DisplayMode();  
-            if (match.Resolution == MatchType.PreserveInput )   
+            DisplayMode bestDisplayMode = new DisplayMode();
+            if (match.Resolution == MatchType.PreserveInput)
             {
                 bestDisplayMode.Width = settings.presentParams.BackBufferWidth;
                 bestDisplayMode.Height = settings.presentParams.BackBufferHeight;
             }
-            else 
+            else
             {
-                DisplayMode displayModeIn = new DisplayMode();  
-                if (match.Resolution == MatchType.ClosestToInput &&
-                    (settings.presentParams.BackBufferWidth != 0 && settings.presentParams.BackBufferWidth != 0) )   
+                DisplayMode displayModeIn = new DisplayMode();
+                if (match.Resolution == MatchType.ClosestToInput && settings.presentParams.BackBufferWidth != 0 &&
+                    settings.presentParams.BackBufferWidth != 0)
                 {
                     displayModeIn.Width = settings.presentParams.BackBufferWidth;
                     displayModeIn.Height = settings.presentParams.BackBufferHeight;
                 }
                 else // if (match.Resolution == MatchType.IgnoreInput )   
                 {
-                    if (deviceCombo.IsWindowed )
+                    if (deviceCombo.IsWindowed)
                     {
                         // The framework defaults to 640x480 for windowed
                         displayModeIn.Width = DefaultSizeWidth;
@@ -1224,24 +1209,24 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Back buffer count
             //---------------------
             uint bestBackBufferCount;
-            if (match.BackBufferCount == MatchType.PreserveInput )   
+            if (match.BackBufferCount == MatchType.PreserveInput)
             {
-                bestBackBufferCount = (uint)settings.presentParams.BackBufferCount;
+                bestBackBufferCount = (uint) settings.presentParams.BackBufferCount;
             }
-            else if (match.BackBufferCount == MatchType.IgnoreInput )   
+            else if (match.BackBufferCount == MatchType.IgnoreInput)
             {
                 // The framework defaults to triple buffering 
                 bestBackBufferCount = 2;
             }
             else // if (match.BackBufferCount == MatchType.ClosestToInput )   
             {
-                bestBackBufferCount = (uint)settings.presentParams.BackBufferCount;
-                if (bestBackBufferCount > 3 )
+                bestBackBufferCount = (uint) settings.presentParams.BackBufferCount;
+                if (bestBackBufferCount > 3)
                     bestBackBufferCount = 3;
-                if (bestBackBufferCount < 1 )
+                if (bestBackBufferCount < 1)
                     bestBackBufferCount = 1;
             }
-    
+
             //---------------------
             // Multisample
             //---------------------
@@ -1255,33 +1240,35 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             }
             else
             {
-                if (match.BackBufferCount == MatchType.PreserveInput )   
+                if (match.BackBufferCount == MatchType.PreserveInput)
                 {
-                    bestMultiSampleType    = settings.presentParams.MultiSample;
-                    bestMultiSampleQuality = (uint)settings.presentParams.MultiSampleQuality;
+                    bestMultiSampleType = settings.presentParams.MultiSample;
+                    bestMultiSampleQuality = (uint) settings.presentParams.MultiSampleQuality;
                 }
-                else if (match.BackBufferCount == MatchType.IgnoreInput )   
+                else if (match.BackBufferCount == MatchType.IgnoreInput)
                 {
                     // Default to no multisampling (always supported)
                     bestMultiSampleType = MultiSampleType.None;
                     bestMultiSampleQuality = 0;
                 }
-                else if (match.BackBufferCount == MatchType.ClosestToInput )   
+                else if (match.BackBufferCount == MatchType.ClosestToInput)
                 {
                     // Default to no multisampling (always supported)
                     bestMultiSampleType = MultiSampleType.None;
                     bestMultiSampleQuality = 0;
 
-                    for (int i = 0; i < deviceCombo.multiSampleTypeList.Count; i++)
+                    for (var i = 0; i < deviceCombo.multiSampleTypeList.Count; i++)
                     {
-                        MultiSampleType tempType = (MultiSampleType)deviceCombo.multiSampleTypeList[i];
-                        uint tempQuality = (uint)(int)deviceCombo.multiSampleQualityList[i];
+                        MultiSampleType tempType = (MultiSampleType) deviceCombo.multiSampleTypeList[i];
+                        var tempQuality = (uint) (int) deviceCombo.multiSampleQualityList[i];
 
                         // Check whether supported type is closer to the input than our current best
-                        if (Math.Abs((int)tempType -  (int)settings.presentParams.MultiSample) < Math.Abs((int)bestMultiSampleType - (int)settings.presentParams.MultiSample) )
+                        if (Math.Abs((int) tempType - (int) settings.presentParams.MultiSample) <
+                            Math.Abs((int) bestMultiSampleType - (int) settings.presentParams.MultiSample))
                         {
                             bestMultiSampleType = tempType;
-                            bestMultiSampleQuality = (uint)Math.Min(tempQuality-1, settings.presentParams.MultiSampleQuality);
+                            bestMultiSampleQuality =
+                                Math.Min(tempQuality - 1, settings.presentParams.MultiSampleQuality);
                         }
                     }
                 }
@@ -1297,11 +1284,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Swap effect
             //---------------------
             SwapEffect bestSwapEffect;
-            if (match.SwapEffect == MatchType.PreserveInput )   
+            if (match.SwapEffect == MatchType.PreserveInput)
             {
                 bestSwapEffect = settings.presentParams.SwapEffect;
             }
-            else if (match.SwapEffect == MatchType.IgnoreInput )   
+            else if (match.SwapEffect == MatchType.IgnoreInput)
             {
                 bestSwapEffect = SwapEffect.Discard;
             }
@@ -1312,10 +1299,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // Swap effect has to be one of these 3
                 if (bestSwapEffect != SwapEffect.Discard &&
                     bestSwapEffect != SwapEffect.Flip &&
-                    bestSwapEffect != SwapEffect.Copy )
-                {
+                    bestSwapEffect != SwapEffect.Copy)
                     bestSwapEffect = SwapEffect.Discard;
-                }
             }
 
             //---------------------
@@ -1324,83 +1309,81 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             DepthFormat bestDepthStencilFormat;
             bool bestEnableAutoDepthStencil;
 
-            int[] depthStencilRanking = new int[deviceCombo.depthStencilFormatList.Count];
+            var depthStencilRanking = new int[deviceCombo.depthStencilFormatList.Count];
 
-            uint backBufferBitDepth = ManagedUtility.GetColorChannelBits( deviceCombo.BackBufferFormat );       
-            uint inputDepthBitDepth = ManagedUtility.GetDepthBits( settings.presentParams.AutoDepthStencilFormat );
+            var backBufferBitDepth = ManagedUtility.GetColorChannelBits(deviceCombo.BackBufferFormat);
+            var inputDepthBitDepth = ManagedUtility.GetDepthBits(settings.presentParams.AutoDepthStencilFormat);
 
-            for( int i=0; i<deviceCombo.depthStencilFormatList.Count; i++ )
+            for (var i = 0; i < deviceCombo.depthStencilFormatList.Count; i++)
             {
-                DepthFormat curDepthStencilFmt = (DepthFormat)deviceCombo.depthStencilFormatList[i];
-                uint curDepthBitDepth = ManagedUtility.GetDepthBits( curDepthStencilFmt );
+                DepthFormat curDepthStencilFmt = (DepthFormat) deviceCombo.depthStencilFormatList[i];
+                var curDepthBitDepth = ManagedUtility.GetDepthBits(curDepthStencilFmt);
                 int ranking;
 
-                if (match.DepthFormat == MatchType.PreserveInput )
-                {                       
+                if (match.DepthFormat == MatchType.PreserveInput)
+                {
                     // Need to match bit depth of input
-                    if(curDepthBitDepth == inputDepthBitDepth)
+                    if (curDepthBitDepth == inputDepthBitDepth)
                         ranking = 0;
                     else
                         ranking = 10000;
                 }
-                else if (match.DepthFormat == MatchType.IgnoreInput )
+                else if (match.DepthFormat == MatchType.IgnoreInput)
                 {
                     // Prefer match of backbuffer bit depth
-                    ranking = Math.Abs((int)curDepthBitDepth - (int)(backBufferBitDepth*4));
+                    ranking = Math.Abs((int) curDepthBitDepth - (int) (backBufferBitDepth * 4));
                 }
                 else // if (match.DepthFormat == MatchType.ClosestToInput )
                 {
                     // Prefer match of input depth format bit depth
-                    ranking = Math.Abs((int)curDepthBitDepth - (int)inputDepthBitDepth);
+                    ranking = Math.Abs((int) curDepthBitDepth - (int) inputDepthBitDepth);
                 }
 
                 depthStencilRanking[i] = ranking;
             }
 
-            uint inputStencilBitDepth = ManagedUtility.GetStencilBits( settings.presentParams.AutoDepthStencilFormat );
+            var inputStencilBitDepth = ManagedUtility.GetStencilBits(settings.presentParams.AutoDepthStencilFormat);
 
-            for( int i=0; i<deviceCombo.depthStencilFormatList.Count; i++ )
+            for (var i = 0; i < deviceCombo.depthStencilFormatList.Count; i++)
             {
-                DepthFormat curDepthStencilFmt = (DepthFormat)deviceCombo.depthStencilFormatList[i];
-                int ranking = depthStencilRanking[i];
-                uint curStencilBitDepth = ManagedUtility.GetStencilBits( curDepthStencilFmt );
+                DepthFormat curDepthStencilFmt = (DepthFormat) deviceCombo.depthStencilFormatList[i];
+                var ranking = depthStencilRanking[i];
+                var curStencilBitDepth = ManagedUtility.GetStencilBits(curDepthStencilFmt);
 
-                if (match.StencilFormat == MatchType.PreserveInput )
-                {                       
+                if (match.StencilFormat == MatchType.PreserveInput)
+                {
                     // Need to match bit depth of input
-                    if(curStencilBitDepth == inputStencilBitDepth)
+                    if (curStencilBitDepth == inputStencilBitDepth)
                         ranking += 0;
                     else
                         ranking += 10000;
                 }
-                else if (match.StencilFormat == MatchType.IgnoreInput )
+                else if (match.StencilFormat == MatchType.IgnoreInput)
                 {
                     // Prefer 0 stencil bit depth
-                    ranking += (int)curStencilBitDepth;
+                    ranking += (int) curStencilBitDepth;
                 }
                 else // if (match.StencilFormat == MatchType.ClosestToInput )
                 {
                     // Prefer match of input stencil format bit depth
-                    ranking += Math.Abs((int)curStencilBitDepth - (int)inputStencilBitDepth);
+                    ranking += Math.Abs((int) curStencilBitDepth - (int) inputStencilBitDepth);
                 }
 
                 depthStencilRanking[i] = ranking;
             }
 
-            int bestRanking = 100000;
-            int bestIndex = -1;
-            for( int i=0; i<depthStencilRanking.Length; i++ )
-            {
-                if (depthStencilRanking[i] < bestRanking )
+            var bestRanking = 100000;
+            var bestIndex = -1;
+            for (var i = 0; i < depthStencilRanking.Length; i++)
+                if (depthStencilRanking[i] < bestRanking)
                 {
                     bestRanking = depthStencilRanking[i];
                     bestIndex = i;
                 }
-            }
 
-            if (bestIndex >= 0 )
+            if (bestIndex >= 0)
             {
-                bestDepthStencilFormat = (DepthFormat)deviceCombo.depthStencilFormatList[bestIndex];
+                bestDepthStencilFormat = (DepthFormat) deviceCombo.depthStencilFormatList[bestIndex];
                 bestEnableAutoDepthStencil = true;
             }
             else
@@ -1414,72 +1397,72 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Present flags
             //---------------------
             PresentFlag bestPresentFlag;
-            if (match.PresentFlags == MatchType.PreserveInput )   
+            if (match.PresentFlags == MatchType.PreserveInput)
             {
                 bestPresentFlag = settings.presentParams.PresentFlag;
             }
-            else if (match.PresentFlags == MatchType.IgnoreInput )   
+            else if (match.PresentFlags == MatchType.IgnoreInput)
             {
                 bestPresentFlag = 0;
-                if (bestEnableAutoDepthStencil )
-                    bestPresentFlag = PresentFlag.DiscardDepthStencil;            
+                if (bestEnableAutoDepthStencil)
+                    bestPresentFlag = PresentFlag.DiscardDepthStencil;
             }
             else // if (match.PresentFlags == MatchType.ClosestToInput )   
             {
                 bestPresentFlag = settings.presentParams.PresentFlag;
-                if (bestEnableAutoDepthStencil )
+                if (bestEnableAutoDepthStencil)
                     bestPresentFlag |= PresentFlag.DiscardDepthStencil;
             }
 
             //---------------------
             // Refresh rate
             //---------------------
-            if (deviceCombo.IsWindowed )
+            if (deviceCombo.IsWindowed)
             {
                 // Must be 0 for windowed
                 bestDisplayMode.RefreshRate = 0;
             }
             else
             {
-                if (match.RefreshRate == MatchType.PreserveInput )   
+                if (match.RefreshRate == MatchType.PreserveInput)
                 {
                     bestDisplayMode.RefreshRate = settings.presentParams.FullScreenRefreshRateInHz;
                 }
-                else 
+                else
                 {
                     uint refreshRateMatch;
-                    if (match.RefreshRate == MatchType.ClosestToInput )   
-                    {
-                        refreshRateMatch = (uint)settings.presentParams.FullScreenRefreshRateInHz;
-                    }
+                    if (match.RefreshRate == MatchType.ClosestToInput)
+                        refreshRateMatch = (uint) settings.presentParams.FullScreenRefreshRateInHz;
                     else // if (match.RefreshRate == MatchType.IgnoreInput )   
-                    {
-                        refreshRateMatch = (uint)adapterDesktopDisplayMode.RefreshRate;
-                    }
+                        refreshRateMatch = (uint) adapterDesktopDisplayMode.RefreshRate;
 
                     bestDisplayMode.RefreshRate = 0;
 
-                    if (refreshRateMatch != 0 )
+                    if (refreshRateMatch != 0)
                     {
-                        int bestRefreshRanking = 100000;
-                        for( int iDisplayMode=0; iDisplayMode<deviceCombo.adapterInformation.displayModeList.Count; iDisplayMode++ )
+                        var bestRefreshRanking = 100000;
+                        for (var iDisplayMode = 0;
+                            iDisplayMode < deviceCombo.adapterInformation.displayModeList.Count;
+                            iDisplayMode++)
                         {
-                            DisplayMode displayMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[iDisplayMode];                
-                            if (displayMode.Format != deviceCombo.AdapterFormat || 
+                            DisplayMode displayMode =
+                                (DisplayMode) deviceCombo.adapterInformation.displayModeList[iDisplayMode];
+                            if (displayMode.Format != deviceCombo.AdapterFormat ||
                                 displayMode.Height != bestDisplayMode.Height ||
-                                displayMode.Width != bestDisplayMode.Width )
+                                displayMode.Width != bestDisplayMode.Width)
                                 continue; // Skip display modes that don't match 
 
                             // Find the delta between the current refresh rate and the optimal refresh rate 
-                            int currentRefreshRanking = Math.Abs((int)displayMode.RefreshRate - (int)refreshRateMatch);
-                                        
-                            if (currentRefreshRanking < bestRefreshRanking )
+                            var currentRefreshRanking =
+                                Math.Abs((int) displayMode.RefreshRate - (int) refreshRateMatch);
+
+                            if (currentRefreshRanking < bestRefreshRanking)
                             {
                                 bestDisplayMode.RefreshRate = displayMode.RefreshRate;
                                 bestRefreshRanking = currentRefreshRanking;
 
                                 // Stop if perfect match found
-                                if (bestRefreshRanking == 0 )
+                                if (bestRefreshRanking == 0)
                                     break;
                             }
                         }
@@ -1491,35 +1474,31 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Present interval
             //---------------------
             PresentInterval bestPresentInterval;
-            if (match.PresentInterval == MatchType.PreserveInput )   
+            if (match.PresentInterval == MatchType.PreserveInput)
             {
                 bestPresentInterval = settings.presentParams.PresentationInterval;
             }
-            else if (match.PresentInterval == MatchType.IgnoreInput )   
+            else if (match.PresentInterval == MatchType.IgnoreInput)
             {
-                if (deviceCombo.IsWindowed )
-                {
+                if (deviceCombo.IsWindowed)
                     // For windowed, the framework defaults to PresentInterval.Immediate
                     // which will wait not for the vertical retrace period to prevent tearing, 
                     // but may introduce tearing
                     bestPresentInterval = PresentInterval.Immediate;
-                }
                 else
-                {
                     // For full screen, the framework defaults to PresentInterval.Default 
                     // which will wait for the vertical retrace period to prevent tearing
                     bestPresentInterval = PresentInterval.Default;
-                }
             }
             else // if (match.PresentInterval == MatchType.ClosestToInput )   
             {
-                if (deviceCombo.presentIntervalList.Contains( settings.presentParams.PresentationInterval ) )
+                if (deviceCombo.presentIntervalList.Contains(settings.presentParams.PresentationInterval))
                 {
                     bestPresentInterval = settings.presentParams.PresentationInterval;
                 }
                 else
                 {
-                    if (deviceCombo.IsWindowed )
+                    if (deviceCombo.IsWindowed)
                         bestPresentInterval = PresentInterval.Immediate;
                     else
                         bestPresentInterval = PresentInterval.Default;
@@ -1535,81 +1514,83 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             validSettings.presentParams.BackBufferWidth = bestDisplayMode.Width;
             validSettings.presentParams.BackBufferHeight = bestDisplayMode.Height;
             validSettings.presentParams.BackBufferFormat = deviceCombo.BackBufferFormat;
-            validSettings.presentParams.BackBufferCount = (int)bestBackBufferCount;
-            validSettings.presentParams.MultiSample = bestMultiSampleType;  
-            validSettings.presentParams.MultiSampleQuality = (int)bestMultiSampleQuality;
+            validSettings.presentParams.BackBufferCount = (int) bestBackBufferCount;
+            validSettings.presentParams.MultiSample = bestMultiSampleType;
+            validSettings.presentParams.MultiSampleQuality = (int) bestMultiSampleQuality;
             validSettings.presentParams.SwapEffect = bestSwapEffect;
-            validSettings.presentParams.DeviceWindow = deviceCombo.IsWindowed ? State.WindowDeviceWindowed : State.WindowDeviceFullScreen;
+            validSettings.presentParams.DeviceWindow =
+                deviceCombo.IsWindowed ? State.WindowDeviceWindowed : State.WindowDeviceFullScreen;
             validSettings.presentParams.Windowed = deviceCombo.IsWindowed;
-            validSettings.presentParams.EnableAutoDepthStencil = bestEnableAutoDepthStencil;  
+            validSettings.presentParams.EnableAutoDepthStencil = bestEnableAutoDepthStencil;
             validSettings.presentParams.AutoDepthStencilFormat = bestDepthStencilFormat;
-            validSettings.presentParams.PresentFlag = bestPresentFlag;                   
-            validSettings.presentParams.FullScreenRefreshRateInHz  = bestDisplayMode.RefreshRate;
+            validSettings.presentParams.PresentFlag = bestPresentFlag;
+            validSettings.presentParams.FullScreenRefreshRateInHz = bestDisplayMode.RefreshRate;
             validSettings.presentParams.PresentationInterval = bestPresentInterval;
             validSettings.presentParams.ForceNoMultiThreadedFlag = true;
 
             return validSettings;
         }
 
-        
+
         /// <summary>
-        /// Returns false for any device combo that doesn't meet the preserve
-        /// match options
+        ///     Returns false for any device combo that doesn't meet the preserve
+        ///     match options
         /// </summary>
-        private bool DoesDeviceComboMatchPreserveOptions(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings, MatchOptions match)
+        private bool DoesDeviceComboMatchPreserveOptions(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings,
+            MatchOptions match)
         {
             //---------------------
             // Adapter ordinal
             //---------------------
-            if (match.AdapterOrdinal == MatchType.PreserveInput && 
-                (deviceCombo.AdapterOrdinal != settings.AdapterOrdinal) )
+            if (match.AdapterOrdinal == MatchType.PreserveInput &&
+                deviceCombo.AdapterOrdinal != settings.AdapterOrdinal)
                 return false;
 
             //---------------------
             // Device type
             //---------------------
-            if (match.DeviceType == MatchType.PreserveInput && 
-                (deviceCombo.DeviceType != settings.DeviceType) )
+            if (match.DeviceType == MatchType.PreserveInput &&
+                deviceCombo.DeviceType != settings.DeviceType)
                 return false;
 
             //---------------------
             // Windowed
             //---------------------
-            if (match.Windowed == MatchType.PreserveInput && 
-                (deviceCombo.IsWindowed != settings.presentParams.Windowed) )
+            if (match.Windowed == MatchType.PreserveInput &&
+                deviceCombo.IsWindowed != settings.presentParams.Windowed)
                 return false;
 
             //---------------------
             // Adapter format
             //---------------------
-            if (match.AdapterFormat == MatchType.PreserveInput && 
-                (deviceCombo.AdapterFormat != settings.AdapterFormat) )
+            if (match.AdapterFormat == MatchType.PreserveInput &&
+                deviceCombo.AdapterFormat != settings.AdapterFormat)
                 return false;
 
             //---------------------
             // Vertex processing
             //---------------------
             // If keep VP and input has HWVP, then skip if this combo doesn't have HWTL 
-            if (match.VertexProcessing == MatchType.PreserveInput && 
-                ((settings.BehaviorFlags & CreateFlags.HardwareVertexProcessing) != 0) && 
-                (deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight) )
+            if (match.VertexProcessing == MatchType.PreserveInput &&
+                (settings.BehaviorFlags & CreateFlags.HardwareVertexProcessing) != 0 &&
+                deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
                 return false;
 
             //---------------------
             // Resolution
             //---------------------
             // If keep resolution then check that width and height supported by this combo
-            if (match.Resolution == MatchType.PreserveInput )
+            if (match.Resolution == MatchType.PreserveInput)
             {
-                bool bFound = false;
-                for( int i=0; i< deviceCombo.adapterInformation.displayModeList.Count; i++ )
+                var bFound = false;
+                for (var i = 0; i < deviceCombo.adapterInformation.displayModeList.Count; i++)
                 {
-                    DisplayMode displayMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[i];
-                    if (displayMode.Format != deviceCombo.AdapterFormat )
+                    DisplayMode displayMode = (DisplayMode) deviceCombo.adapterInformation.displayModeList[i];
+                    if (displayMode.Format != deviceCombo.AdapterFormat)
                         continue; // Skip this display mode if it doesn't match the combo's adapter format
 
                     if (displayMode.Width == settings.presentParams.BackBufferWidth &&
-                        displayMode.Height == settings.presentParams.BackBufferHeight )
+                        displayMode.Height == settings.presentParams.BackBufferHeight)
                     {
                         bFound = true;
                         break;
@@ -1617,15 +1598,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 }
 
                 // If the width and height are not supported by this combo, return false
-                if (!bFound )
+                if (!bFound)
                     return false;
             }
 
             //---------------------
             // Back buffer format
             //---------------------
-            if (match.BackBufferFormat == MatchType.PreserveInput && 
-                deviceCombo.BackBufferFormat != settings.presentParams.BackBufferFormat )
+            if (match.BackBufferFormat == MatchType.PreserveInput &&
+                deviceCombo.BackBufferFormat != settings.presentParams.BackBufferFormat)
                 return false;
 
             //---------------------
@@ -1636,16 +1617,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Multisample
             //---------------------
-            if (match.MultiSample == MatchType.PreserveInput )
+            if (match.MultiSample == MatchType.PreserveInput)
             {
-                bool bFound = false;
-                for( int i=0; i<deviceCombo.multiSampleTypeList.Count; i++ )
+                var bFound = false;
+                for (var i = 0; i < deviceCombo.multiSampleTypeList.Count; i++)
                 {
-                    MultiSampleType msType = (MultiSampleType)deviceCombo.multiSampleTypeList[i];
-                    uint msQuality  = (uint)(int)deviceCombo.multiSampleQualityList[i];
+                    MultiSampleType msType = (MultiSampleType) deviceCombo.multiSampleTypeList[i];
+                    var msQuality = (uint) (int) deviceCombo.multiSampleQualityList[i];
 
                     if (msType == settings.presentParams.MultiSample &&
-                        msQuality >= settings.presentParams.MultiSampleQuality )
+                        msQuality >= settings.presentParams.MultiSampleQuality)
                     {
                         bFound = true;
                         break;
@@ -1653,10 +1634,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 }
 
                 // If multisample type/quality not supported by this combo, then return false
-                if (!bFound )
+                if (!bFound)
                     return false;
             }
-        
+
             //---------------------
             // Swap effect
             //---------------------
@@ -1667,46 +1648,44 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // If keep depth stencil format then check that the depth stencil format is supported by this combo
             if (match.DepthFormat == MatchType.PreserveInput &&
-                match.StencilFormat == MatchType.PreserveInput )
-            {
-                if (settings.presentParams.AutoDepthStencilFormat != (DepthFormat)Format.Unknown &&
-                    !deviceCombo.depthStencilFormatList.Contains( settings.presentParams.AutoDepthStencilFormat ) )
+                match.StencilFormat == MatchType.PreserveInput)
+                if (settings.presentParams.AutoDepthStencilFormat != (DepthFormat) Format.Unknown &&
+                    !deviceCombo.depthStencilFormatList.Contains(settings.presentParams.AutoDepthStencilFormat))
                     return false;
-            }
 
             // If keep depth format then check that the depth format is supported by this combo
             if (match.DepthFormat == MatchType.PreserveInput &&
-                settings.presentParams.AutoDepthStencilFormat != DepthFormat.Unknown )
+                settings.presentParams.AutoDepthStencilFormat != DepthFormat.Unknown)
             {
-                bool bFound = false;
-                uint depthBits = ManagedUtility.GetDepthBits( settings.presentParams.AutoDepthStencilFormat );
-                for( int i=0; i<deviceCombo.depthStencilFormatList.Count; i++ )
+                var bFound = false;
+                var depthBits = ManagedUtility.GetDepthBits(settings.presentParams.AutoDepthStencilFormat);
+                for (var i = 0; i < deviceCombo.depthStencilFormatList.Count; i++)
                 {
-                    DepthFormat depthStencilFmt = (DepthFormat)deviceCombo.depthStencilFormatList[i];
-                    uint curDepthBits = ManagedUtility.GetDepthBits(depthStencilFmt);
+                    DepthFormat depthStencilFmt = (DepthFormat) deviceCombo.depthStencilFormatList[i];
+                    var curDepthBits = ManagedUtility.GetDepthBits(depthStencilFmt);
                     if (curDepthBits - depthBits == 0)
                         bFound = true;
                 }
 
-                if (!bFound )
+                if (!bFound)
                     return false;
             }
 
             // If keep depth format then check that the depth format is supported by this combo
             if (match.StencilFormat == MatchType.PreserveInput &&
-                settings.presentParams.AutoDepthStencilFormat != DepthFormat.Unknown )
+                settings.presentParams.AutoDepthStencilFormat != DepthFormat.Unknown)
             {
-                bool bFound = false;
-                uint stencilBits = ManagedUtility.GetStencilBits( settings.presentParams.AutoDepthStencilFormat );
-                for( int i=0; i<deviceCombo.depthStencilFormatList.Count; i++ )
+                var bFound = false;
+                var stencilBits = ManagedUtility.GetStencilBits(settings.presentParams.AutoDepthStencilFormat);
+                for (var i = 0; i < deviceCombo.depthStencilFormatList.Count; i++)
                 {
-                    DepthFormat depthStencilFmt = (DepthFormat)deviceCombo.depthStencilFormatList[i];
-                    uint curStencilBits = ManagedUtility.GetStencilBits(depthStencilFmt);
+                    DepthFormat depthStencilFmt = (DepthFormat) deviceCombo.depthStencilFormatList[i];
+                    var curStencilBits = ManagedUtility.GetStencilBits(depthStencilFmt);
                     if (curStencilBits - stencilBits == 0)
                         bFound = true;
                 }
 
-                if (!bFound )
+                if (!bFound)
                     return false;
             }
 
@@ -1719,15 +1698,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Refresh rate
             //---------------------
             // If keep refresh rate then check that the resolution is supported by this combo
-            if (match.RefreshRate == MatchType.PreserveInput )
+            if (match.RefreshRate == MatchType.PreserveInput)
             {
-                bool bFound = false;
-                for( int i=0; i<deviceCombo.adapterInformation.displayModeList.Count; i++ )
+                var bFound = false;
+                for (var i = 0; i < deviceCombo.adapterInformation.displayModeList.Count; i++)
                 {
-                    DisplayMode displayMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[i];
-                    if (displayMode.Format != deviceCombo.AdapterFormat )
+                    DisplayMode displayMode = (DisplayMode) deviceCombo.adapterInformation.displayModeList[i];
+                    if (displayMode.Format != deviceCombo.AdapterFormat)
                         continue;
-                    if (displayMode.RefreshRate == settings.presentParams.FullScreenRefreshRateInHz )
+                    if (displayMode.RefreshRate == settings.presentParams.FullScreenRefreshRateInHz)
                     {
                         bFound = true;
                         break;
@@ -1735,7 +1714,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 }
 
                 // If refresh rate not supported by this combo, then return false
-                if (!bFound )
+                if (!bFound)
                     return false;
             }
 
@@ -1744,18 +1723,19 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // If keep present interval then check that the present interval is supported by this combo
             if (match.PresentInterval == MatchType.PreserveInput &&
-                !deviceCombo.presentIntervalList.Contains( settings.presentParams.PresentationInterval ) )
+                !deviceCombo.presentIntervalList.Contains(settings.presentParams.PresentationInterval))
                 return false;
 
             return true;
         }
 
         /// <summary>
-        /// Arbitrarily ranks device combo's
+        ///     Arbitrarily ranks device combo's
         /// </summary>
-        private float RankDeviceCombo(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings, DisplayMode adapterMode)
+        private float RankDeviceCombo(EnumDeviceSettingsCombo deviceCombo, DeviceSettings settings,
+            DisplayMode adapterMode)
         {
-            float currentRanking = 0.0f; 
+            var currentRanking = 0.0f;
 
             // Arbitrary weights.  Gives preference to the ordinal, device type, and windowed
             const float adapterOrdinalWeight = 1000.0f;
@@ -1774,100 +1754,100 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Adapter ordinal
             //---------------------
-            if (deviceCombo.AdapterOrdinal == settings.AdapterOrdinal )
+            if (deviceCombo.AdapterOrdinal == settings.AdapterOrdinal)
                 currentRanking += adapterOrdinalWeight;
 
             //---------------------
             // Device type
             //---------------------
-            if (deviceCombo.DeviceType == settings.DeviceType )
+            if (deviceCombo.DeviceType == settings.DeviceType)
                 currentRanking += deviceTypeWeight;
             // Slightly prefer HAL 
-            if (deviceCombo.DeviceType == DeviceType.Hardware )
-                currentRanking += 0.1f; 
+            if (deviceCombo.DeviceType == DeviceType.Hardware)
+                currentRanking += 0.1f;
 
             //---------------------
             // Windowed
             //---------------------
-            if (deviceCombo.IsWindowed == settings.presentParams.Windowed )
+            if (deviceCombo.IsWindowed == settings.presentParams.Windowed)
                 currentRanking += windowWeight;
 
             //---------------------
             // Adapter format
             //---------------------
-            if (deviceCombo.AdapterFormat == settings.AdapterFormat )
+            if (deviceCombo.AdapterFormat == settings.AdapterFormat)
             {
                 currentRanking += adapterFormatWeight;
             }
             else
             {
-                int bitDepthDelta = Math.Abs((int)ManagedUtility.GetColorChannelBits(deviceCombo.AdapterFormat) -
-                    (int)ManagedUtility.GetColorChannelBits(settings.AdapterFormat) );
-                float scale = Math.Max(0.9f - (float)bitDepthDelta*0.2f, 0);
+                var bitDepthDelta = Math.Abs((int) ManagedUtility.GetColorChannelBits(deviceCombo.AdapterFormat) -
+                                             (int) ManagedUtility.GetColorChannelBits(settings.AdapterFormat));
+                var scale = Math.Max(0.9f - bitDepthDelta * 0.2f, 0);
                 currentRanking += scale * adapterFormatWeight;
             }
 
-            if (!deviceCombo.IsWindowed )
+            if (!deviceCombo.IsWindowed)
             {
                 // Slightly prefer when it matches the desktop format or is Format.X8R8G8B8
                 bool isAdapterOptimalMatch;
-                if (ManagedUtility.GetColorChannelBits(adapterMode.Format) >= 8 )
-                    isAdapterOptimalMatch = (deviceCombo.AdapterFormat == adapterMode.Format);
+                if (ManagedUtility.GetColorChannelBits(adapterMode.Format) >= 8)
+                    isAdapterOptimalMatch = deviceCombo.AdapterFormat == adapterMode.Format;
                 else
-                    isAdapterOptimalMatch = (deviceCombo.AdapterFormat == Format.X8R8G8B8);
+                    isAdapterOptimalMatch = deviceCombo.AdapterFormat == Format.X8R8G8B8;
 
-                if (isAdapterOptimalMatch )
+                if (isAdapterOptimalMatch)
                     currentRanking += 0.1f;
             }
 
             //---------------------
             // Vertex processing
             //---------------------
-            if ((settings.BehaviorFlags & CreateFlags.HardwareVertexProcessing) != 0 || 
-                (settings.BehaviorFlags & CreateFlags.MixedVertexProcessing) != 0 )
-            {
-                if(deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
+            if ((settings.BehaviorFlags & CreateFlags.HardwareVertexProcessing) != 0 ||
+                (settings.BehaviorFlags & CreateFlags.MixedVertexProcessing) != 0)
+                if (deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
                     currentRanking += vertexProcessingWeight;
-            }
             // Slightly prefer HW T&L
-            if(deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
+            if (deviceCombo.deviceInformation.Caps.DeviceCaps.SupportsHardwareTransformAndLight)
                 currentRanking += 0.1f;
 
             //---------------------
             // Resolution
             //---------------------
-            bool bResolutionFound = false;
-            for( int idm = 0; idm < deviceCombo.adapterInformation.displayModeList.Count; idm++ )
+            var bResolutionFound = false;
+            for (var idm = 0; idm < deviceCombo.adapterInformation.displayModeList.Count; idm++)
             {
-                DisplayMode displayMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[idm];
-                if (displayMode.Format != deviceCombo.AdapterFormat )
+                DisplayMode displayMode = (DisplayMode) deviceCombo.adapterInformation.displayModeList[idm];
+                if (displayMode.Format != deviceCombo.AdapterFormat)
                     continue;
                 if (displayMode.Width == settings.presentParams.BackBufferWidth &&
-                    displayMode.Height == settings.presentParams.BackBufferHeight )
+                    displayMode.Height == settings.presentParams.BackBufferHeight)
                     bResolutionFound = true;
             }
-            if (bResolutionFound )
+
+            if (bResolutionFound)
                 currentRanking += resolutionWeight;
 
             //---------------------
             // Back buffer format
             //---------------------
-            if (deviceCombo.BackBufferFormat == settings.presentParams.BackBufferFormat )
+            if (deviceCombo.BackBufferFormat == settings.presentParams.BackBufferFormat)
             {
                 currentRanking += backBufferFormatWeight;
             }
             else
             {
-                int bitDepthDelta = Math.Abs((int)ManagedUtility.GetColorChannelBits(deviceCombo.BackBufferFormat) -
-                    (int)ManagedUtility.GetColorChannelBits(settings.presentParams.BackBufferFormat) );
-                float scale = Math.Max(0.9f - (float)bitDepthDelta*0.2f, 0);
+                var bitDepthDelta = Math.Abs((int) ManagedUtility.GetColorChannelBits(deviceCombo.BackBufferFormat) -
+                                             (int) ManagedUtility.GetColorChannelBits(settings.presentParams
+                                                 .BackBufferFormat));
+                var scale = Math.Max(0.9f - bitDepthDelta * 0.2f, 0);
                 currentRanking += scale * backBufferFormatWeight;
             }
 
             // Check if this back buffer format is the same as 
             // the adapter format since this is preferred.
-            bool bAdapterMatchesBB = (deviceCombo.BackBufferFormat == deviceCombo.AdapterFormat);
-            if (bAdapterMatchesBB )
+            bool bAdapterMatchesBB = deviceCombo.BackBufferFormat == deviceCombo.AdapterFormat;
+            if (bAdapterMatchesBB)
                 currentRanking += 0.1f;
 
             //---------------------
@@ -1878,22 +1858,23 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Multisample
             //---------------------
-            bool bMultiSampleFound = false;
-            for( int i=0; i<deviceCombo.multiSampleTypeList.Count; i++ )
+            var bMultiSampleFound = false;
+            for (var i = 0; i < deviceCombo.multiSampleTypeList.Count; i++)
             {
-                MultiSampleType msType = (MultiSampleType)deviceCombo.multiSampleTypeList[i];
-                uint msQuality  = (uint)(int)deviceCombo.multiSampleQualityList[i];
+                MultiSampleType msType = (MultiSampleType) deviceCombo.multiSampleTypeList[i];
+                var msQuality = (uint) (int) deviceCombo.multiSampleQualityList[i];
 
                 if (msType == settings.presentParams.MultiSample &&
-                    msQuality >= settings.presentParams.MultiSampleQuality )
+                    msQuality >= settings.presentParams.MultiSampleQuality)
                 {
                     bMultiSampleFound = true;
                     break;
                 }
             }
-            if (bMultiSampleFound )
+
+            if (bMultiSampleFound)
                 currentRanking += multiSampleWeight;
-        
+
             //---------------------
             // Swap effect
             //---------------------
@@ -1902,7 +1883,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Depth stencil 
             //---------------------
-            if (deviceCombo.depthStencilFormatList.Contains( settings.presentParams.AutoDepthStencilFormat ) )
+            if (deviceCombo.depthStencilFormatList.Contains(settings.presentParams.AutoDepthStencilFormat))
                 currentRanking += depthStencilWeight;
 
             //---------------------
@@ -1913,30 +1894,31 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //---------------------
             // Refresh rate
             //---------------------
-            bool bRefreshFound = false;
-            for( int idm = 0; idm < deviceCombo.adapterInformation.displayModeList.Count; idm++ )
+            var bRefreshFound = false;
+            for (var idm = 0; idm < deviceCombo.adapterInformation.displayModeList.Count; idm++)
             {
-                DisplayMode displayMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[idm];
-                if (displayMode.Format != deviceCombo.AdapterFormat )
+                DisplayMode displayMode = (DisplayMode) deviceCombo.adapterInformation.displayModeList[idm];
+                if (displayMode.Format != deviceCombo.AdapterFormat)
                     continue;
-                if (displayMode.RefreshRate == settings.presentParams.FullScreenRefreshRateInHz )
+                if (displayMode.RefreshRate == settings.presentParams.FullScreenRefreshRateInHz)
                     bRefreshFound = true;
             }
-            if (bRefreshFound )
+
+            if (bRefreshFound)
                 currentRanking += refreshRateWeight;
 
             //---------------------
             // Present interval
             //---------------------
             // If keep present interval then check that the present interval is supported by this combo
-            if (deviceCombo.presentIntervalList.Contains( settings.presentParams.PresentationInterval ) )
+            if (deviceCombo.presentIntervalList.Contains(settings.presentParams.PresentationInterval))
                 currentRanking += presentIntervalWeight;
 
             return currentRanking;
         }
 
         /// <summary>
-        /// public helper function to find the closest allowed display mode to the optimal 
+        ///     public helper function to find the closest allowed display mode to the optimal
         /// </summary>
         private DisplayMode FindValidResolution(EnumDeviceSettingsCombo deviceCombo, DisplayMode displayMode)
         {
@@ -1948,18 +1930,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // in a reasonable size in the desktop's 
                 // This isn't the same as the current resolution from GetAdapterDisplayMode
                 // since the device might be fullscreen
-                EnumAdapterInformation adapterInfo = Enumeration.GetAdapterInformation(deviceCombo.AdapterOrdinal);
+                var adapterInfo = Enumeration.GetAdapterInformation(deviceCombo.AdapterOrdinal);
                 // Find the right screen
-                System.Windows.Forms.Screen displayScreen = null;
+                Screen displayScreen = null;
                 string adapterName = adapterInfo.AdapterInformation.DeviceName.ToLower();
-                foreach(System.Windows.Forms.Screen s in System.Windows.Forms.Screen.AllScreens)
+                foreach (var s in Screen.AllScreens)
                 {
-                    string deviceName = s.DeviceName.ToLower();
+                    var deviceName = s.DeviceName.ToLower();
                     // For some reason the device name has null characters in it.  Remove them
-                    if (deviceName.IndexOf("\0") > 0)
-                    {
-                        deviceName = deviceName.Substring(0, deviceName.IndexOf("\0"));
-                    }
+                    if (deviceName.IndexOf("\0") > 0) deviceName = deviceName.Substring(0, deviceName.IndexOf("\0"));
                     if (deviceName == adapterName)
                     {
                         // Found the correct screen
@@ -1967,58 +1946,57 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         break;
                     }
                 }
-                System.Diagnostics.Debug.Assert(displayScreen != null, "We should have found the screen by now.");
+
+                Debug.Assert(displayScreen != null, "We should have found the screen by now.");
 
                 // For windowed mode, just keep it something reasonable within the size 
                 // of the working area of the desktop
-                if (bestDisplayMode.Width > displayScreen.WorkingArea.Width )
+                if (bestDisplayMode.Width > displayScreen.WorkingArea.Width)
                     bestDisplayMode.Width = displayScreen.WorkingArea.Width;
-                if (bestDisplayMode.Height > displayScreen.WorkingArea.Height )
+                if (bestDisplayMode.Height > displayScreen.WorkingArea.Height)
                     bestDisplayMode.Height = displayScreen.WorkingArea.Height;
-
             }
             else
             {
-                int bestRanking = 100000;
+                var bestRanking = 100000;
                 int currentRanking;
-                for( int iDisplayMode=0; iDisplayMode<deviceCombo.adapterInformation.displayModeList.Count; iDisplayMode++ )
+                for (var iDisplayMode = 0;
+                    iDisplayMode < deviceCombo.adapterInformation.displayModeList.Count;
+                    iDisplayMode++)
                 {
-                    DisplayMode storedMode = (DisplayMode)deviceCombo.adapterInformation.displayModeList[iDisplayMode];
+                    DisplayMode storedMode = (DisplayMode) deviceCombo.adapterInformation.displayModeList[iDisplayMode];
 
                     // Skip display modes that don't match the combo's adapter format
-                    if (storedMode.Format != deviceCombo.AdapterFormat )
+                    if (storedMode.Format != deviceCombo.AdapterFormat)
                         continue;
 
                     // Find the delta between the current width/height and the optimal width/height
-                    currentRanking = Math.Abs((int)storedMode.Width - (int)displayMode.Width) + 
-                        Math.Abs((int)storedMode.Height- (int)displayMode.Height);
+                    currentRanking = Math.Abs((int) storedMode.Width - (int) displayMode.Width) +
+                                     Math.Abs((int) storedMode.Height - (int) displayMode.Height);
 
-                    if (currentRanking < bestRanking )
+                    if (currentRanking < bestRanking)
                     {
                         bestDisplayMode = displayMode;
                         bestRanking = currentRanking;
 
                         // Stop if perfect match found
-                        if (bestRanking == 0 )
+                        if (bestRanking == 0)
                             break;
                     }
                 }
 
                 // Were any found?
-                if (bestDisplayMode.Width == 0 )
-                {
-                    throw new NoCompatibleDevicesException();
-                }
+                if (bestDisplayMode.Width == 0) throw new NoCompatibleDevicesException();
             }
 
             return bestDisplayMode;
         }
 
         /// <summary>
-        /// Change to a Direct3D device created from the device settings or passed in.
-        /// The framework will only reset if the device is similar to the previous device 
-        /// otherwise it will cleanup the previous device (if there is one) and recreate the 
-        /// scene using the app's device callbacks.
+        ///     Change to a Direct3D device created from the device settings or passed in.
+        ///     The framework will only reset if the device is similar to the previous device
+        ///     otherwise it will cleanup the previous device (if there is one) and recreate the
+        ///     scene using the app's device callbacks.
         /// </summary>
         private void ChangeDevice(DeviceSettings newDeviceSettings, Device deviceFromApp, bool forceRecreate)
         {
@@ -2041,12 +2019,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Only apply the cmd line overrides if this is the first device created
             // and SetDevice() isn't used
-            if ( (deviceFromApp == null) && (oldSettings == null) )
-            {
+            if (deviceFromApp == null && oldSettings == null)
                 // Updates the device settings struct based on the cmd line args.  
                 // Warning: if the device doesn't support these new settings then CreateDevice() will fail.
                 UpdateDeviceSettingsWithOverrides(ref newDeviceSettings);
-            }
 
             // If windowed, then update the window client rect and window bounds rect
             // with the new pp.BackBufferWidth & pp.BackBufferHeight
@@ -2063,11 +2039,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 if (State.WindowFocus != null)
                 {
                     // Create a new client rectangle of the correct size
-                    System.Drawing.Rectangle windowClient = State.ClientRectangle;
-                    windowClient.Size = new System.Drawing.Size(newDeviceSettings.presentParams.BackBufferWidth, newDeviceSettings.presentParams.BackBufferHeight);
+                    var windowClient = State.ClientRectangle;
+                    windowClient.Size = new Size(newDeviceSettings.presentParams.BackBufferWidth,
+                        newDeviceSettings.presentParams.BackBufferHeight);
 
                     State.ClientRectangle = windowClient; // Store this for resizing later
-                    State.WindowBoundsRectangle = WindowFocus.Bounds;;
+                    State.WindowBoundsRectangle = WindowFocus.Bounds;
+                    ;
                 }
             }
 
@@ -2078,12 +2056,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // If AdapterOrdinal and DeviceType are the same, we can just do a Reset().
             // If they've changed, we need to do a complete device tear down/rebuild.
             // Also only allow a reset if deviceFromApp is the same as the current device 
-            if( !forceRecreate && 
-                (deviceFromApp == null || deviceFromApp == State.Device) && 
+            if (!forceRecreate &&
+                (deviceFromApp == null || deviceFromApp == State.Device) &&
                 oldSettings != null &&
                 oldSettings.AdapterOrdinal == newDeviceSettings.AdapterOrdinal &&
                 oldSettings.DeviceType == newDeviceSettings.DeviceType &&
-                oldSettings.BehaviorFlags == newDeviceSettings.BehaviorFlags )
+                oldSettings.BehaviorFlags == newDeviceSettings.BehaviorFlags)
             {
                 try
                 {
@@ -2093,7 +2071,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 catch
                 {
                     // The reset has failed, the device is lost
-                    Pause (false, false);
+                    Pause(false, false);
                     State.IsDeviceLost = true;
                 }
             }
@@ -2101,19 +2079,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // Recreate the device
                 if (oldSettings != null)
-                {
                     // The adapter and device type don't match so 
                     // cleanup and create the 3D device again
                     Cleanup3DEnvironment(false);
-                }
-                
+
                 Device device = deviceFromApp;
                 // Only create a Direct3D device if one hasn't been supplied by the app
                 if (deviceFromApp == null)
-                {
                     try
                     {
-                        device = new Device((int)newDeviceSettings.AdapterOrdinal, newDeviceSettings.DeviceType,
+                        device = new Device((int) newDeviceSettings.AdapterOrdinal, newDeviceSettings.DeviceType,
                             State.WindowFocus, newDeviceSettings.BehaviorFlags,
                             newDeviceSettings.presentParams);
                     }
@@ -2121,11 +2096,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     {
                         // There was an error creating the device
                         Pause(false, false);
-                        CreatingDeviceException cde = new CreatingDeviceException(e);
+                        var cde = new CreatingDeviceException(e);
                         DisplayErrorMessage(cde);
                         throw;
                     }
-                }
 
                 // Hook the device lost/reset events
                 device.DeviceLost += new EventHandler(OnDeviceLost);
@@ -2146,14 +2120,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     Pause(false, false);
                     throw;
                 }
+
                 // Update the device stats text
                 Enumeration.Enumerate(null);
-                EnumAdapterInformation adapterInfo = Enumeration.GetAdapterInformation(newDeviceSettings.AdapterOrdinal);
-                UpdateDeviceStats(newDeviceSettings.DeviceType, newDeviceSettings.BehaviorFlags, adapterInfo.AdapterInformation);
+                var adapterInfo = Enumeration.GetAdapterInformation(newDeviceSettings.AdapterOrdinal);
+                UpdateDeviceStats(newDeviceSettings.DeviceType, newDeviceSettings.BehaviorFlags,
+                    adapterInfo.AdapterInformation);
             }
 
             // Get the adapter monitor
-            State.AdapterMonitor = Manager.GetAdapterMonitor((int)newDeviceSettings.AdapterOrdinal);
+            State.AdapterMonitor = Manager.GetAdapterMonitor((int) newDeviceSettings.AdapterOrdinal);
 
             // When moving from full screen to windowed mode, it is important to
             // adjust the window size after resetting the device rather than
@@ -2167,40 +2143,36 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 if (State.WindowFocus == null)
                 {
-                    System.Drawing.Rectangle rect = State.WindowBoundsRectangle;
+                    var rect = State.WindowBoundsRectangle;
 
                     // Resize the window
-                    System.Drawing.Point pt = rect.Location;
+                    var pt = rect.Location;
                     pt = Window.PointToScreen(pt);
 
-                    if (!State.IsMaximized)
-                    {
-                        Window.SetBounds(pt.X, pt.Y, rect.Width, rect.Height, System.Windows.Forms.BoundsSpecified.All);
-                    }
+                    if (!State.IsMaximized) Window.SetBounds(pt.X, pt.Y, rect.Width, rect.Height, BoundsSpecified.All);
 
-                        
 
                     // Check to see if the monitor has changed windows
-                    NativeMethods.MonitorInformation infoAdapter = new NativeMethods.MonitorInformation();
+                    var infoAdapter = new NativeMethods.MonitorInformation();
                     // Set size
-                    infoAdapter.Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.MonitorInformation));
+                    infoAdapter.Size = (uint) Marshal.SizeOf(typeof(NativeMethods.MonitorInformation));
                     NativeMethods.GetMonitorInfo(State.AdapterMonitor, ref infoAdapter);
                     // Calculate width/height, this needs to happen because the unmanaged RECT structure is different than the managed Rectangle
-                    int monitorWidth = infoAdapter.WorkRectangle.Right - infoAdapter.WorkRectangle.Left;
-                    int monitorHeight = infoAdapter.WorkRectangle.Bottom - infoAdapter.WorkRectangle.Top;
+                    var monitorWidth = infoAdapter.WorkRectangle.Right - infoAdapter.WorkRectangle.Left;
+                    var monitorHeight = infoAdapter.WorkRectangle.Bottom - infoAdapter.WorkRectangle.Top;
 
                     // Get the monitor this app is on
-                    IntPtr monitorHandle = NativeMethods.MonitorFromWindow(Window.Handle, 1); // Default to primary
-                    NativeMethods.MonitorInformation infoWindow = new NativeMethods.MonitorInformation();
+                    var monitorHandle = NativeMethods.MonitorFromWindow(Window.Handle, 1); // Default to primary
+                    var infoWindow = new NativeMethods.MonitorInformation();
                     // Set size
-                    infoWindow.Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.MonitorInformation));
+                    infoWindow.Size = (uint) Marshal.SizeOf(typeof(NativeMethods.MonitorInformation));
                     NativeMethods.GetMonitorInfo(monitorHandle, ref infoWindow);
 
                     rect = State.WindowBoundsRectangle;
-                    int windowOffsetX = rect.Left - infoWindow.MonitorRectangle.Left;
-                    int windowOffsetY = rect.Top - infoWindow.MonitorRectangle.Top;
-                    int windowWidth = rect.Right - rect.Left;
-                    int windowHeight = rect.Bottom - rect.Top;
+                    var windowOffsetX = rect.Left - infoWindow.MonitorRectangle.Left;
+                    var windowOffsetY = rect.Top - infoWindow.MonitorRectangle.Top;
+                    var windowWidth = rect.Right - rect.Left;
+                    var windowHeight = rect.Bottom - rect.Top;
 
                     if (State.IsWindowCreatedWithDefaultPositions)
                     {
@@ -2211,9 +2183,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         State.IsWindowCreatedWithDefaultPositions = false;
 
                         // Center window if the bottom or right of the window is outside the monitor's work area
-                        if (infoAdapter.WorkRectangle.Left + windowOffsetX + windowWidth > infoAdapter.WorkRectangle.Right)
+                        if (infoAdapter.WorkRectangle.Left + windowOffsetX + windowWidth >
+                            infoAdapter.WorkRectangle.Right)
                             windowOffsetX = (monitorWidth - windowWidth) / 2;
-                        if (infoAdapter.WorkRectangle.Top + windowOffsetY + windowHeight > infoAdapter.WorkRectangle.Bottom)
+                        if (infoAdapter.WorkRectangle.Top + windowOffsetY + windowHeight >
+                            infoAdapter.WorkRectangle.Bottom)
                             windowOffsetY = (monitorHeight - windowHeight) / 2;
                     }
 
@@ -2221,12 +2195,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     pt.X = infoAdapter.MonitorRectangle.Left + windowOffsetX;
                     pt.Y = infoAdapter.MonitorRectangle.Top + windowOffsetY;
                 }
-
             }
             else
             {
                 // Just store the full screen client rectangle
-                State.FullScreenClientRectangle = new System.Drawing.Rectangle(0,0, newDeviceSettings.presentParams.BackBufferWidth,
+                State.FullScreenClientRectangle = new Rectangle(0, 0, newDeviceSettings.presentParams.BackBufferWidth,
                     newDeviceSettings.presentParams.BackBufferHeight);
             }
 
@@ -2237,7 +2210,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Updates the string which describes the device 
+        ///     Updates the string which describes the device
         /// </summary>
         private void UpdateDeviceStats(DeviceType deviceType, CreateFlags behaviorFlags, AdapterDetails info)
         {
@@ -2247,7 +2220,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Get the behavior flags
             BehaviorFlags flags = new BehaviorFlags(behaviorFlags);
             // Store device information
-            System.Text.StringBuilder builder = new System.Text.StringBuilder();
+            var builder = new StringBuilder();
             // Append device type
             builder.Append(deviceType.ToString());
             // Append other types based on flags
@@ -2286,12 +2259,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Updates the device settings struct based on the cmd line args.  
+        ///     Updates the device settings struct based on the cmd line args.
         /// </summary>
         private void UpdateDeviceSettingsWithOverrides(ref DeviceSettings settings)
         {
             if (State.OverrideAdapterOrdinal != -1)
-                settings.AdapterOrdinal = (uint)State.OverrideAdapterOrdinal;
+                settings.AdapterOrdinal = (uint) State.OverrideAdapterOrdinal;
 
             if (State.IsOverridingFullScreen)
                 settings.presentParams.Windowed = false;
@@ -2330,17 +2303,17 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
 
         /// <summary>
-        /// Resets the 3D environment by:
-        /// - Calls the device lost callback 
-        /// - Resets the device
-        /// - Stores the back buffer description
-        /// - Sets up the full screen Direct3D cursor if requested
-        /// - Calls the device reset callback 
+        ///     Resets the 3D environment by:
+        ///     - Calls the device lost callback
+        ///     - Resets the device
+        ///     - Stores the back buffer description
+        ///     - Sets up the full screen Direct3D cursor if requested
+        ///     - Calls the device reset callback
         /// </summary>
         public void Reset3DEnvironment()
         {
             Device device = State.Device;
-            System.Diagnostics.Debug.Assert(device != null, "The device should not be null here.");
+            Debug.Assert(device != null, "The device should not be null here.");
             if (device == null)
                 throw new InvalidOperationException("The device should not be null.");
 
@@ -2358,35 +2331,31 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // Reset the device
                 device.Reset(State.CurrentDeviceSettings.presentParams);
             }
-            catch  (Exception e)
+            catch (Exception e)
             {
                 if (e is MediaNotFoundException)
+                {
                     DisplayErrorMessage(e as MediaNotFoundException);
+                }
                 else
                 {
                     // Reset could legitimately fail if the device is lost
-                    if (!(e is DeviceLostException))
-                    {
-                        DisplayErrorMessage(new ResettingDeviceException(e));
-                    }
+                    if (!(e is DeviceLostException)) DisplayErrorMessage(new ResettingDeviceException(e));
                 }
 
                 // We failed, call the lost callback once more
                 OnDeviceLost(null, EventArgs.Empty);
-                if (!(e is DeviceLostException))
-                {
-                    throw;
-                }
+                if (!(e is DeviceLostException)) throw;
             }
         }
 
         /// <summary>
-        /// Render the 3D environment by:
-        /// - Checking if the device is lost and trying to reset it if it is
-        /// - Get the elapsed time since the last frame
-        /// - Calling the app's framemove and render callback
-        /// - Calling Present()
-        /// If you're not using MainLoop, consider using Render3DEnvironment
+        ///     Render the 3D environment by:
+        ///     - Checking if the device is lost and trying to reset it if it is
+        ///     - Get the elapsed time since the last frame
+        ///     - Calling the app's framemove and render callback
+        ///     - Calling Present()
+        ///     If you're not using MainLoop, consider using Render3DEnvironment
         /// </summary>
         public void Render3DEnvironment()
         {
@@ -2395,17 +2364,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 return; // Nothing to do
 
             if (State.IsDeviceLost || State.IsRenderingPaused)
-            {
                 // Window is minimized or paused so yield 
                 // CPU time to other processes
-                System.Threading.Thread.Sleep(100); 
-            }
+                Thread.Sleep(100);
 
             if (!State.IsActive)
-            {
                 // Window is not in focus so yield some CPU time to other processes
-                System.Threading.Thread.Sleep(20); 
-            }
+                Thread.Sleep(20);
 
             if (State.IsDeviceLost && !State.IsRenderingPaused)
             {
@@ -2413,11 +2378,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // Check the cooperative level to see if it's ok to render
                 if (!device.CheckCooperativeLevel(out result))
                 {
-                    if (result == (int)ResultCode.DeviceLost)
+                    if (result == (int) ResultCode.DeviceLost)
                     {
                         // The device has been lost but cannot be reset at this time.  
                         // So wait until it can be reset.
-                        System.Threading.Thread.Sleep(50); 
+                        Thread.Sleep(50);
                         return;
                     }
 
@@ -2426,11 +2391,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // since the user could have changed the desktop bitdepth 
                     if (IsWindowed)
                     {
-                        DisplayMode adapterDesktopMode = Manager.Adapters[(int)State.CurrentDeviceSettings.AdapterOrdinal].CurrentDisplayMode;
+                        DisplayMode adapterDesktopMode = Manager
+                            .Adapters[(int) State.CurrentDeviceSettings.AdapterOrdinal].CurrentDisplayMode;
                         if (State.CurrentDeviceSettings.AdapterFormat != adapterDesktopMode.Format)
                         {
                             // Set up the match options
-                            MatchOptions match = new MatchOptions();
+                            var match = new MatchOptions();
                             match.AdapterOrdinal = MatchType.PreserveInput;
                             match.DeviceType = MatchType.PreserveInput;
                             match.Windowed = MatchType.PreserveInput;
@@ -2447,7 +2413,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                             match.RefreshRate = MatchType.ClosestToInput;
                             match.PresentInterval = MatchType.ClosestToInput;
 
-                            DeviceSettings settings = State.CurrentDeviceSettings;
+                            var settings = State.CurrentDeviceSettings;
                             settings.AdapterFormat = adapterDesktopMode.Format;
                             try
                             {
@@ -2461,6 +2427,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                                 DisplayErrorMessage(new NoCompatibleDevicesException());
                                 Dispose();
                             }
+
                             return;
                         }
                     }
@@ -2473,37 +2440,38 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     catch (DeviceLostException)
                     {
                         // The device was lost again, so continue waiting until it can be reset.
-                        System.Threading.Thread.Sleep(50); 
+                        Thread.Sleep(50);
                         return;
                     }
                     catch
                     {
                         // Reset failed, but the device wasn't lost so something bad happened, 
                         // so recreate the device to try to recover
-                        DeviceSettings deviceSettings = State.CurrentDeviceSettings;
+                        var deviceSettings = State.CurrentDeviceSettings;
                         try
                         {
                             ChangeDevice(deviceSettings, null, false);
                         }
                         catch (Exception e)
                         {
-                            ResettingDeviceException rde = new ResettingDeviceException(e);
+                            var rde = new ResettingDeviceException(e);
                             DisplayErrorMessage(rde);
                             Dispose();
                             throw;
                         }
                     }
                 }
+
                 State.IsDeviceLost = false;
             }
 
             // Get the app's time, in seconds. Skip rendering if no time elapsed
-            double time = FrameworkTimer.GetTime();
-            float elapsedTime = (float)FrameworkTimer.GetElapsedTime();
+            var time = FrameworkTimer.GetTime();
+            var elapsedTime = (float) FrameworkTimer.GetElapsedTime();
 
             // Store the time for the app
             if (State.IsUsingConstantFrameTime)
-            {        
+            {
                 elapsedTime = State.TimePerFrame;
                 time = State.CurrentTime + elapsedTime;
             }
@@ -2543,7 +2511,6 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 }
 
                 if (!State.IsRenderingPaused)
-                {
                     // Render the scene by calling the app's render callback
                     if (State.CallbackInterface != null)
                     {
@@ -2552,11 +2519,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         if (device == null)
                             return;
                     }
-                }
             }
 
             if (!State.IsRenderingPaused)
-            {
                 // Show the frame on the primary surface
                 try
                 {
@@ -2567,38 +2532,17 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // Whoops, device is lost now
                     State.IsDeviceLost = true;
                 }
-                catch (DriverInternalErrorException)
-                {
-                    // When DriverInternalErrorException is thrown from Present(),
-                    // the application can do one of the following:
-                    // 
-                    // - End, with the pop-up window saying that the application cannot continue 
-                    //   because of problems in the display adapter and that the user should 
-                    //   contact the adapter manufacturer.
-                    //
-                    // - Attempt to restart by calling Device.Reset, which is essentially the same 
-                    //   path as recovering from a lost device. If Device.Reset throws the 
-                    //   DriverInternalErrorException, the application should end immediately with the 
-                    //   message that the user should contact the adapter manufacturer.
-                    // 
-                    // The framework attempts the path of resetting the device
-                    // 
-                    State.IsDeviceLost = true;
-                }
-            }
 
             // Update the current frame number
             State.CurrentFrameNumber++;
 
             if (State.OverrideQuitAfterFrame != 0)
-            {
                 if (State.CurrentFrameNumber > State.OverrideQuitAfterFrame)
                     Dispose();
-            }
         }
 
         /// <summary>
-        /// Closes down the window.  When the window closes, it will cleanup everything
+        ///     Closes down the window.  When the window closes, it will cleanup everything
         /// </summary>
         private void Shutdown()
         {
@@ -2606,16 +2550,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             Cleanup3DEnvironment(true);
             // Close the window
             if (Window != null)
-            {
                 if (WindowForm != null)
-                {
                     WindowForm.Close();
-                }
-            }
         }
 
         /// <summary>
-        /// Pauses time or rendering.  Keeps a ref count so pausing can be layered
+        ///     Pauses time or rendering.  Keeps a ref count so pausing can be layered
         /// </summary>
         public void Pause(bool pauseTime, bool pauseRendering)
         {
@@ -2629,33 +2569,29 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 State.PauseRenderingCount = 0;
 
             if (State.PauseTimeCount > 0)
-            {
                 // Stop the scene from animating
                 FrameworkTimer.Stop();
-            }
             else
-            {
                 // Restart the timer
                 FrameworkTimer.Start();
-            }
 
-            State.IsRenderingPaused = (State.PauseRenderingCount > 0);
-            State.IsTimePaused = (State.PauseTimeCount > 0);
+            State.IsRenderingPaused = State.PauseRenderingCount > 0;
+            State.IsTimePaused = State.PauseTimeCount > 0;
         }
 
 
         /// <summary>
-        /// Display an custom error msg box
+        ///     Display an custom error msg box
         /// </summary>
         public void DisplayErrorMessage(Exception e)
         {
-            if (e == lastDisplayedMessage) 
+            if (e == lastDisplayedMessage)
                 return; //Already displayed this
 
             lastDisplayedMessage = e;
 
             State.ApplicationExitCode = 1;
-            bool found = true;
+            var found = true;
             if (e is ApplicationException)
             {
                 if (e is NoDirect3DException)
@@ -2676,43 +2612,45 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     found = false;
             }
             else
+            {
                 found = false;
+            }
 
-            string errorText = string.Empty;
+            var errorText = string.Empty;
             if (found && State.IsShowingMsgBoxOnError)
             {
                 errorText = e.Message;
                 if (e.InnerException != null)
                 {
-                    errorText += "\r\n\r\n" + e.InnerException.ToString();
+                    errorText += "\r\n\r\n" + e.InnerException;
                     lastDisplayedMessage = e.InnerException;
                 }
 
                 if (State.WindowTitle != null && State.WindowTitle.Length > 0)
-                    System.Windows.Forms.MessageBox.Show(errorText, "DirectX Application", 
-                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    MessageBox.Show(errorText, "DirectX Application",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 else
-                    System.Windows.Forms.MessageBox.Show(errorText, State.WindowTitle, 
-                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    MessageBox.Show(errorText, State.WindowTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             else if (!found && State.IsShowingMsgBoxOnError)
             {
                 errorText = e.ToString();
                 // Unknown error, but they still want to see them
                 if (State.WindowTitle != null && State.WindowTitle.Length > 0)
-                    System.Windows.Forms.MessageBox.Show(errorText, "DirectX Application", 
-                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    MessageBox.Show(errorText, "DirectX Application",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 else
-                    System.Windows.Forms.MessageBox.Show(errorText, State.WindowTitle, 
-                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    MessageBox.Show(errorText, State.WindowTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         /// <summary>
-        ///  Cleans up the 3D environment by:
-        ///  - Calls the device lost callback 
-        ///  - Calls the device destroyed callback 
-        ///  - Disposes the D3D device
+        ///     Cleans up the 3D environment by:
+        ///     - Calls the device lost callback
+        ///     - Calls the device destroyed callback
+        ///     - Disposes the D3D device
         /// </summary>
         private void Cleanup3DEnvironment(bool releaseSettings)
         {
@@ -2723,43 +2661,42 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (State.Settings != null)
             {
                 State.Settings.OnLostDevice();
-                State.Settings.OnDestroyDevice( this, EventArgs.Empty);
+                State.Settings.OnDestroyDevice(this, EventArgs.Empty);
             }
 
-            using(Device device = State.Device)
+            using (Device device = State.Device)
             {
                 if (releaseSettings)
-                {
                     // Get rid of settings
                     State.CurrentDeviceSettings = null;
-                }
 
                 // Empty out other structures
                 State.BackBufferSurfaceDesc = new SurfaceDescription();
                 State.Caps = new Caps();
                 State.WasDeviceCreated = false;
             }
+
             // No more device
             State.Device = null;
         }
 
         /// <summary>
-        /// Initializes the 3D environment by:
-        /// - Adjusts the window size, style, and menu 
-        /// - Stores the back buffer description
-        /// - Sets up the full screen Direct3D cursor if requested
-        /// - Calls the device created callback
-        /// - Calls the device reset callback
-        /// - If both callbacks succeed it unpauses the app 
+        ///     Initializes the 3D environment by:
+        ///     - Adjusts the window size, style, and menu
+        ///     - Stores the back buffer description
+        ///     - Sets up the full screen Direct3D cursor if requested
+        ///     - Calls the device created callback
+        ///     - Calls the device reset callback
+        ///     - If both callbacks succeed it unpauses the app
         /// </summary>
         private void Initialize3DEnvironment()
         {
             Device device = State.Device;
-            System.Diagnostics.Debug.Assert(device != null, "The device should not be null here.");
+            Debug.Assert(device != null, "The device should not be null here.");
             if (device == null)
                 throw new InvalidOperationException("The device should not be null.");
 
-            bool success = true;
+            var success = true;
             try
             {
                 State.AreDeviceObjectsCreated = false;
@@ -2781,6 +2718,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         State.Settings.OnCreateDevice(device);
                         State.Settings.OnResetDevice();
                     }
+
                     // Call the dialog resource manager create device method
                     DialogResourceManager.GetGlobalInstance().OnCreateDevice(device);
 
@@ -2790,9 +2728,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     // Call the applications device created callback if it's set
                     State.IsInsideDeviceCallback = true;
                     if (DeviceCreated != null)
-                    {
                         DeviceCreated(this, new DeviceEventArgs(device, State.BackBufferSurfaceDesc));
-                    }
                     State.IsInsideDeviceCallback = false;
                     State.AreDeviceObjectsCreated = true;
                 }
@@ -2843,12 +2779,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 if (!success)
                     Cleanup3DEnvironment(true);
             }
-
         }
 
         /// <summary>
-        /// Prepares a new or resetting device by with cursor info and 
-        /// store backbuffer desc and caps from the device
+        ///     Prepares a new or resetting device by with cursor info and
+        ///     store backbuffer desc and caps from the device
         /// </summary>
         private void PrepareDevice(Device device)
         {
@@ -2856,7 +2791,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             UpdateStaticFrameStats();
 
             // Store render target surface desc
-            using(Surface backBuffer = device.GetBackBuffer(0, 0, BackBufferType.Mono))
+            using (Surface backBuffer = device.GetBackBuffer(0, 0, BackBufferType.Mono))
             {
                 State.BackBufferSurfaceDesc = backBuffer.Description;
             }
@@ -2868,9 +2803,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (State.IsShowingCursorWhenFullScreen && !IsWindowed)
             {
                 // Get a valid cursor
-                System.Windows.Forms.Cursor cursor = System.Windows.Forms.Cursor.Current;
+                var cursor = Cursor.Current;
                 if (cursor == null)
-                    cursor = System.Windows.Forms.Cursors.Default;
+                    cursor = Cursors.Default;
 
                 device.SetCursor(cursor, false);
                 device.ShowCursor(true);
@@ -2880,24 +2815,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (State.IsCursorClippedWhenFullScreen)
             {
                 if (!IsWindowed)
-                {
                     // Turn on clipping for the full screen window
-                    System.Windows.Forms.Cursor.Clip = State.FullScreenClientRectangle;
-                }
+                    Cursor.Clip = State.FullScreenClientRectangle;
                 else
-                {
                     // Turn off clipping
-                    System.Windows.Forms.Cursor.Clip = System.Drawing.Rectangle.Empty;
-                }
+                    Cursor.Clip = Rectangle.Empty;
             }
         }
 
         /// <summary>
-        /// Prepare the window for a possible change between windowed mode and full screen mode
+        ///     Prepare the window for a possible change between windowed mode and full screen mode
         /// </summary>
         private void AdjustWindowStyle(System.Windows.Forms.Control control, bool isWindowed)
         {
-            System.Windows.Forms.Form window = control as System.Windows.Forms.Form;
+            var window = control as Form;
             if (window == null) // nothing to do
                 return;
 
@@ -2905,13 +2836,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // If different device windows are used for windowed mode and fullscreen mode,
                 // hide the fullscreen window so that it doesn't obscure the screen.
-                if (State.WindowDeviceWindowed != State.WindowDeviceFullScreen)
-                {
-                    State.WindowDeviceFullScreen.Hide();
-                }
+                if (State.WindowDeviceWindowed != State.WindowDeviceFullScreen) State.WindowDeviceFullScreen.Hide();
 
                 // Set the window style mode
-                window.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+                window.FormBorderStyle = FormBorderStyle.Sizable;
             }
             else
             {
@@ -2919,22 +2847,23 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // restore and show the fullscreen device window.
                 if (State.WindowDeviceWindowed != State.WindowDeviceFullScreen)
                 {
-                    System.Windows.Forms.Form fullscreen = State.WindowDeviceFullScreen as System.Windows.Forms.Form;
+                    var fullscreen = State.WindowDeviceFullScreen as Form;
                     if (fullscreen != null)
                     {
-                        if (fullscreen.WindowState == System.Windows.Forms.FormWindowState.Minimized)
-                            fullscreen.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                        if (fullscreen.WindowState == FormWindowState.Minimized)
+                            fullscreen.WindowState = FormWindowState.Normal;
 
                         State.WindowDeviceFullScreen.Show();
                     }
                 }
+
                 // Set the full screen style mode
-                window.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+                window.FormBorderStyle = FormBorderStyle.None;
             }
         }
 
         /// <summary>
-        /// Updates the frames/sec stat once per second
+        ///     Updates the frames/sec stat once per second
         /// </summary>
         private void UpdateFrameStats()
         {
@@ -2942,23 +2871,23 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 return; // Do nothing if stats are hidden
 
             // Keep track of frame count
-            double time = FrameworkTimer.GetAbsoluteTime();
+            var time = FrameworkTimer.GetAbsoluteTime();
             State.LastStatsUpdateFrames++;
 
             if (time - State.LastStatsUpdateTime > 1.0)
             {
-                float fps = (float)(State.LastStatsUpdateFrames / (time - State.LastStatsUpdateTime));
+                var fps = (float) (State.LastStatsUpdateFrames / (time - State.LastStatsUpdateTime));
                 State.CurrentFrameRate = fps;
                 State.LastStatsUpdateFrames = 0;
                 State.LastStatsUpdateTime = time;
 
                 State.FrameStats = string.Format(State.StaticFrameStats, fps.ToString("f2",
-                    System.Globalization.CultureInfo.CurrentUICulture));
+                    CultureInfo.CurrentUICulture));
             }
         }
 
         /// <summary>
-        /// Updates the static part of the frame stats so it doesn't have be generated every frame
+        ///     Updates the static part of the frame stats so it doesn't have be generated every frame
         /// </summary>
         private void UpdateStaticFrameStats()
         {
@@ -2966,11 +2895,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 return; // Do nothing if stats are hidden
 
             State.StaticFrameStats = string.Empty;
-            DeviceSettings settings = State.CurrentDeviceSettings;
+            var settings = State.CurrentDeviceSettings;
             if (settings.presentParams == null)
                 return; // Nothing to do
 
-            EnumDeviceSettingsCombo combo = Enumeration.GetDeviceSettingsCombo(
+            var combo = Enumeration.GetDeviceSettingsCombo(
                 settings.AdapterOrdinal, settings.DeviceType, settings.AdapterFormat,
                 settings.presentParams.BackBufferFormat, settings.presentParams.Windowed);
 
@@ -2980,26 +2909,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Get adapter/backbuffer format string
             string formatString = null;
             if (settings.AdapterFormat == combo.BackBufferFormat)
-            {
                 // Get the format string
                 formatString = "Format." + settings.AdapterFormat.ToString();
-            }
             else
-            {
                 formatString = string.Format("backbuffer Format.{0}, adapter Format.{1}",
                     combo.BackBufferFormat, settings.AdapterFormat);
-            }
 
             // Get depth stencil format string
             string depthFormat = null;
             if (settings.presentParams.EnableAutoDepthStencil)
-            {
                 depthFormat = " Format." + settings.presentParams.AutoDepthStencilFormat.ToString();
-            }
 
             // Get any multisampling string
             string multiSampleString = null;
-            switch(settings.presentParams.MultiSample)
+            switch (settings.presentParams.MultiSample)
             {
                 case MultiSampleType.None:
                     multiSampleString = null; // No display
@@ -3008,7 +2931,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     multiSampleString = " (Nonmaskable Multisample)";
                     break;
                 default:
-                    multiSampleString = string.Format(" ({0} Multisample)", settings.presentParams.MultiSample.ToString());
+                    multiSampleString =
+                        string.Format(" ({0} Multisample)", settings.presentParams.MultiSample.ToString());
                     break;
             }
 
@@ -3019,26 +2943,22 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// public helper function to return the adapter format from the first device settings 
-        /// combo that matches the passed adapter ordinal, device type, backbuffer format, and windowed.  
+        ///     public helper function to return the adapter format from the first device settings
+        ///     combo that matches the passed adapter ordinal, device type, backbuffer format, and windowed.
         /// </summary>
         private Format FindAdapterFormat(uint adapterOrdinal, DeviceType deviceType, Format backbufferFormat,
             bool isWindowed)
         {
-            EnumDeviceInformation deviceInfo = Enumeration.GetDeviceInfo(adapterOrdinal, deviceType);
+            var deviceInfo = Enumeration.GetDeviceInfo(adapterOrdinal, deviceType);
             if (deviceInfo != null)
-            {
-                for (int i = 0; i < deviceInfo.deviceSettingsList.Count; i++)
+                for (var i = 0; i < deviceInfo.deviceSettingsList.Count; i++)
                 {
-                    EnumDeviceSettingsCombo combo = deviceInfo.deviceSettingsList[i] as EnumDeviceSettingsCombo;
-                    if ( (combo.BackBufferFormat == backbufferFormat) &&
-                        (combo.IsWindowed == isWindowed) )
-                    {
+                    var combo = deviceInfo.deviceSettingsList[i] as EnumDeviceSettingsCombo;
+                    if (combo.BackBufferFormat == backbufferFormat &&
+                        combo.IsWindowed == isWindowed)
                         // return first match
                         return combo.AdapterFormat;
-                    }
                 }
-            }
 
             // Couldn't find any adapter format's.. Return back buffer format
             return backbufferFormat;
@@ -3046,11 +2966,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
 
         /// <summary>
-        /// Checks if the window client rect has changed and if it has, then reset the device
+        ///     Checks if the window client rect has changed and if it has, then reset the device
         /// </summary>
         private void HandlePossibleSizeChange()
         {
-            if ( (!State.WasDeviceCreated) || (State.AreSizeChangesIgnored) )
+            if (!State.WasDeviceCreated || State.AreSizeChangesIgnored)
                 return; // Nothing to do here
 
             if (!State.CurrentDeviceSettings.presentParams.Windowed)
@@ -3059,7 +2979,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (Window == null)
                 return; // still nothing to do, we don't have a window
 
-            System.Drawing.Rectangle oldClient = State.ClientRectangle;
+            var oldClient = State.ClientRectangle;
             // Now store the new client
             State.ClientRectangle = Window.ClientRectangle;
 
@@ -3073,13 +2993,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 // size, so the 3D structures must be changed accordingly.
                 Pause(true, true);
 
-                DeviceSettings settings = State.CurrentDeviceSettings;
+                var settings = State.CurrentDeviceSettings;
                 settings.presentParams.BackBufferWidth = Window.ClientRectangle.Width;
                 settings.presentParams.BackBufferHeight = Window.ClientRectangle.Height;
 
                 // Reset the 3D environment
                 if (State.Device != null)
-                {
                     try
                     {
                         Reset3DEnvironment();
@@ -3088,7 +3007,6 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     {
                         State.IsDeviceLost = true;
                     }
-                }
 
                 Pause(false, false);
             }
@@ -3097,30 +3015,30 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Checks to see if the window changed monitors, and if it did it creates a device 
-        /// from the monitor's adapter and recreates the scene.
+        ///     Checks to see if the window changed monitors, and if it did it creates a device
+        ///     from the monitor's adapter and recreates the scene.
         /// </summary>
         private void CheckForWindowMonitorChange()
         {
             // Don't do this if the user doesn't want it
             if (!State.CanAutoChangeAdapter)
-                return; 
+                return;
 
-            IntPtr monitorHandle = NativeMethods.MonitorFromWindow(Window.Handle, 1); // Primary monitor
+            var monitorHandle = NativeMethods.MonitorFromWindow(Window.Handle, 1); // Primary monitor
             if (monitorHandle != State.AdapterMonitor)
             {
                 // Changing device, pause
                 Pause(true, true);
                 // Get the new ordinal
-                uint newOrdinal = GetAdapterOridinalFromMonitor(monitorHandle);
-                
+                var newOrdinal = GetAdapterOridinalFromMonitor(monitorHandle);
+
                 // Get the current device settings and flip the ordinal then
                 // find the closest valid device settings with this change
-                DeviceSettings settings = State.CurrentDeviceSettings.Clone();
+                var settings = State.CurrentDeviceSettings.Clone();
                 settings.AdapterOrdinal = newOrdinal;
 
                 // Set up the match options
-                MatchOptions match = new MatchOptions();
+                var match = new MatchOptions();
                 match.AdapterOrdinal = MatchType.PreserveInput;
                 match.DeviceType = MatchType.ClosestToInput;
                 match.Windowed = MatchType.ClosestToInput;
@@ -3152,17 +3070,17 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         // This is a much worse error.. Shut down and fail
                         Dispose();
                         Pause(false, false);
-                        System.Diagnostics.Debugger.Log(0, string.Empty, e.ToString());
+                        Debugger.Log(0, string.Empty, e.ToString());
                         return;
                     }
-                } 
+                }
                 catch
                 {
                     // No valid device was found for this monitor, that's bad, but not fatal.
                     // Ignore this error
-                } 
-
+                }
             }
+
             Pause(false, false);
         }
 
@@ -3171,48 +3089,44 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             uint ordinal = 0;
 
-            foreach(EnumAdapterInformation info in Enumeration.AdapterInformationList)
-            {
-                if (Manager.GetAdapterMonitor((int)info.AdapterOrdinal) == monitorHandle)
+            foreach (EnumAdapterInformation info in Enumeration.AdapterInformationList)
+                if (Manager.GetAdapterMonitor((int) info.AdapterOrdinal) == monitorHandle)
                     ordinal = info.AdapterOrdinal;
-            }
             return ordinal;
         }
 
         /// <summary>Will try to load the first icon from the resources</summary>
-        public System.Drawing.Icon LoadFirstIconFromResource()
+        public Icon LoadFirstIconFromResource()
         {
             // Get the assembly that is calling this method
-            System.Reflection.Assembly currentAssembly = System.Reflection.Assembly.GetCallingAssembly();
-            foreach(string s in currentAssembly.GetManifestResourceNames())
-            {
+            var currentAssembly = Assembly.GetCallingAssembly();
+            foreach (var s in currentAssembly.GetManifestResourceNames())
                 try
                 {
                     // See if there are any .icos
-                    System.IO.Stream resourceStream = currentAssembly.GetManifestResourceStream(s);
-                    return new System.Drawing.Icon(resourceStream);
+                    var resourceStream = currentAssembly.GetManifestResourceStream(s);
+                    return new Icon(resourceStream);
                 }
-                catch 
+                catch
                 {
                     // No icon yet, try reading the resources in a different way
                     try
                     {
-                        System.Resources.ResourceReader reader = new System.Resources.ResourceReader(currentAssembly.GetManifestResourceStream(s));
-                        IDictionaryEnumerator en = reader.GetEnumerator();
-                        while(en.MoveNext())
+                        var reader = new ResourceReader(currentAssembly.GetManifestResourceStream(s));
+                        var en = reader.GetEnumerator();
+                        while (en.MoveNext())
                         {
-                            System.Drawing.Icon test = en.Value as System.Drawing.Icon;
+                            var test = en.Value as Icon;
                             if (test != null)
                                 return test;
                         }
                     }
-                    catch 
+                    catch
                     {
                         // Didn't find an icon yet, continue
-                        continue;
                     }
-                }   
-            }
+                }
+
             // It's no big deal if we can't load the icon, just return null instead
             return null;
         }
@@ -3224,12 +3138,6 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             State.IsShowingCursorWhenFullScreen = showCursorWhenFullscreen;
         }
 
-        /// <summary>Determines if the adapter can automatically change monitors</summary>
-        public bool CanAutomaticallyChangeMonitor
-        {
-            get { return State.CanAutoChangeAdapter; } set { State.CanAutoChangeAdapter = value; }
-        }
-
         /// <summary>Allows to set constant time per frame</summary>
         public void SetConstantFrameTime(bool constantFrameTime, float timePerFrame)
         {
@@ -3238,9 +3146,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 constantFrameTime = true;
                 timePerFrame = State.OverrideConstantTimePerFrame;
             }
+
             State.TimePerFrame = timePerFrame;
             State.IsUsingConstantFrameTime = constantFrameTime;
         }
+
         /// <summary>Allows to set constant time per frame</summary>
         public void SetConstantFrameTime(bool constantFrameTime)
         {
@@ -3249,15 +3159,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>
-        /// Exit code from the framework
-        /// </summary>
-        public int ExitCode
-        {
-            get { return State.ApplicationExitCode; }
-        }
-
-        /// <summary>
-        /// Show the settings dialog, and create if needed
+        ///     Show the settings dialog, and create if needed
         /// </summary>
         public void ShowSettingsDialog(bool shouldShow)
         {
@@ -3265,288 +3167,31 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             if (shouldShow)
             {
-                SettingsDialog dialog = PrepareSettingsDialog();
+                var dialog = PrepareSettingsDialog();
                 dialog.Refresh();
             }
         }
 
         /// <summary>
-        /// public helper function to prepare the settings dialog by creating it if it didn't 
-        /// already exist and enumerating if desired.
+        ///     public helper function to prepare the settings dialog by creating it if it didn't
+        ///     already exist and enumerating if desired.
         /// </summary>
         /// <returns></returns>
         private SettingsDialog PrepareSettingsDialog()
         {
-            SettingsDialog dialog = State.Settings;
+            var dialog = State.Settings;
             if (dialog == null)
             {
                 // Create it
                 dialog = new SettingsDialog(this);
                 State.Settings = dialog; // Store it too
 
-                if (State.AreDeviceObjectsCreated)
-                {
-                    dialog.OnCreateDevice(State.Device);
-                }
-                if (State.AreDeviceObjectsReset)
-                {
-                    dialog.OnResetDevice();
-                }
+                if (State.AreDeviceObjectsCreated) dialog.OnCreateDevice(State.Device);
+                if (State.AreDeviceObjectsReset) dialog.OnResetDevice();
             }
 
             return dialog;
         }
-
-        #region External state access functions
-        /// <summary>
-        /// Returns the device current in use for the framework
-        /// </summary>
-        public Device Device
-        {
-            get { return State.Device;}
-        }
-
-        /// <summary>
-        /// Returns the back buffer surface description
-        /// </summary>
-        public SurfaceDescription BackBufferSurfaceDescription
-        {
-            get { return State.BackBufferSurfaceDesc; }
-        }
-
-        /// <summary>
-        /// Returns the device capabilities
-        /// </summary>
-        public Caps DeviceCaps
-        {
-            get { return State.Caps; }
-        }
-
-        /// <summary>
-        /// Get the current window used for rendering
-        /// </summary>
-        public System.Windows.Forms.Control Window
-        {
-            get { return IsWindowed ? State.WindowDeviceWindowed : State.WindowDeviceFullScreen; }
-        }
-
-        /// <summary>
-        /// Get the current window used for rendering
-        /// </summary>
-        public System.Windows.Forms.Form WindowForm
-        {
-            get { return Window as System.Windows.Forms.Form; }
-        }
-
-        /// <summary>
-        /// Get the current focus window 
-        /// </summary>
-        public System.Windows.Forms.Control WindowFocus
-        {
-            get { return State.WindowFocus; }
-        }
-
-        /// <summary>
-        /// Get the current window used for windowed rendering
-        /// </summary>
-        public System.Windows.Forms.Control WindowDeviceWindowed
-        {
-            get { return State.WindowDeviceWindowed; }
-        }
-
-        /// <summary>
-        /// Get the current window used for full screen rendering
-        /// </summary>
-        public System.Windows.Forms.Control WindowDeviceFullscreen
-        {
-            get { return State.WindowDeviceFullScreen; }
-        }
-
-        /// <summary>
-        /// Client rectangle size
-        /// </summary>
-        public System.Drawing.Rectangle WindowClientRectangle
-        {
-            get { return State.ClientRectangle; }
-        }
-
-        /// <summary>
-        /// Client rectangle size
-        /// </summary>
-        public System.Drawing.Rectangle ClientRectangle
-        {
-            get { return IsWindowed ? State.ClientRectangle : State.FullScreenClientRectangle; }
-        }
-        
-        /// <summary>
-        /// Return if windowed in the current device.  If no device exists yet, return false
-        /// </summary>
-        public bool IsWindowed
-        {
-            get 
-            {
-                DeviceSettings settings = State.CurrentDeviceSettings;
-                if ((settings != null) && (settings.presentParams != null))
-                    return settings.presentParams.Windowed;
-                else
-                    return false;
-            }
-        }
-
-
-        /// <summary>
-        /// Frame statistics
-        /// </summary>
-        public string FrameStats
-        {
-            get { return State.FrameStats; }
-        }
-        /// <summary>
-        /// Device statistics
-        /// </summary>
-        public string DeviceStats
-        {
-            get { return State.DeviceStats; }
-        }
-
-        /// <summary>
-        /// Frames per second application is running at
-        /// </summary>
-        public float FPS
-        {
-            get { return State.CurrentFrameRate; }
-        }
-
-        /// <summary>
-        /// Returns whether the settings is showing
-        /// </summary>
-        public bool IsD3DSettingsDialogShowing
-        {
-            get { return State.IsD3DSettingsDialogShowing; }
-        }
-
-        /// <summary>
-        /// Returns whether the framework is showing errors
-        /// </summary>
-        public bool IsShowingMsgBoxOnError
-        {
-            get { return State.IsShowingMsgBoxOnError; }
-        }
-
-        /// <summary>
-        /// Return the device settings of the current device.  If no device exists yet, then
-        /// return blank device settings 
-        /// </summary>
-        public DeviceSettings DeviceSettings
-        {
-            get 
-            { 
-                if (State.CurrentDeviceSettings != null)
-                {
-                    return State.CurrentDeviceSettings;
-                }
-                else
-                {
-                    return new DeviceSettings();
-                }
-            }
-        }
-        /// <summary>
-        /// Return the present params of the current device.  If no device exists yet, then
-        /// return blank present params 
-        /// </summary>
-        public PresentParameters PresentParameters
-        {
-            get 
-            { 
-                if (State.CurrentDeviceSettings != null)
-                {
-                    return State.CurrentDeviceSettings.presentParams;
-                }
-                else
-                {
-                    return new PresentParameters();
-                }
-            }
-        }
-        /// <summary>Should the framework also notify for mouse moves</summary>
-        public bool IsNotifiedOnMouseMove
-        {
-            get { return State.IsNotifiedOnMouseMove; } set { State.IsNotifiedOnMouseMove = value;}
-        }
-
-        /// <summary>Should the framework override and start fullscreen?</summary>
-        public bool IsOverridingFullScreen 
-        {
-            get { return State.IsOverridingFullScreen; } set { State.IsOverridingFullScreen = value;}
-        }
-
-        /// <summary>Should the framework ignore size changes?</summary>
-        public bool IsIgnoringSizeChanges { get { return State.AreSizeChangesIgnored; } set { State.AreSizeChangesIgnored = value; } }
-
-        /// <summary>Resets the state associated with the sample framework</summary>
-        public void ResetState()
-        {
-            State = new FrameworkData();
-        }
-        #endregion
-
-        #region Timer Callbacks
-        /// <summary>Adds a timer to the list of timers for the application</summary>
-        /// <returns>A unqiue id of the timer</returns>
-        public int SetTimer(TimerCallback callbackTimer, float timeoutInSeconds)
-        {
-            if (callbackTimer == null)
-                throw new ArgumentNullException("callbackTimer", "You must pass in a valid timer callback .");
-
-            TimerData timer = new TimerData();
-            timer.callback = callbackTimer;
-            timer.Countdown = timeoutInSeconds;
-            timer.TimeoutInSecs = timeoutInSeconds;
-            timer.IsEnabled = true;
-
-            State.Timers.Add(timer);
-            return State.Timers.Count;
-        }
-
-        /// <summary>Kills an already created timer</summary>
-        public void KillTimer(int id)
-        {
-            if (id < State.Timers.Count)
-            {
-                TimerData timer = (TimerData)State.Timers[id];
-                timer.IsEnabled = false;
-                State.Timers[id] = timer;
-            }
-            else
-            {
-                throw new ArgumentException("An invalid timer ID was passed in", "id");
-            }
-        }
-
-        /// <summary>public helper function to handle calling the user defined timer callbacks</summary>
-        private void HandleTimers()
-        {
-            float elapsedTime = State.ElapsedTime;
-
-            // Walk through the list of timers
-            for (int i = 0; i < State.Timers.Count; i++)
-            {
-                TimerData ft = (TimerData)State.Timers[i];
-                if (ft.IsEnabled)
-                {
-                    ft.Countdown -= elapsedTime;
-                    // Call the callback if the countdown expired
-                    if (ft.Countdown < 0)
-                    {
-                        ft.callback((uint)i);
-                        ft.Countdown = ft.TimeoutInSecs;
-                    }
-                    State.Timers[i] = ft;
-                }
-            }
-        }
-        #endregion
 
         /// <summary>Will close the window</summary>
         public void CloseWindow()
@@ -3555,326 +3200,22 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 WindowForm.Close();
         }
 
-        #region Window Message Handling
-
         /// <summary>
-        /// Fired when the window needs to be repainted
-        /// </summary>
-        private void OnPaint(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            // Handle paint messages when the app is paused
-            if ( (State.Device != null) && (State.AreDeviceObjectsCreated) && 
-                (State.AreDeviceObjectsReset) && (State.IsRenderingPaused) )
-            {
-                double time = State.CurrentTime;
-                float elapsedTime = State.ElapsedTime;
-
-                if (State.Settings != null && State.IsD3DSettingsDialogShowing)
-                {
-                    // Clear the render target and the zbuffer 
-                    State.Device.Clear(ClearFlags.Target, 0x00003F3F, 1.0f, 0);
-
-                    // Render the scene
-                    State.Device.BeginScene();
-                    State.Settings.OnRender(elapsedTime);
-                    State.Device.EndScene();
-                }
-                else
-                {
-                    if (State.CallbackInterface != null)
-                    {
-                        State.CallbackInterface.OnFrameRender(State.Device, time, elapsedTime);
-                    }
-                }
-
-                // Now try to present
-                try
-                {
-                    State.Device.Present();
-                }
-                catch(DeviceLostException)
-                {
-                    // Device was lost
-                    State.IsDeviceLost = true;
-                }
-                catch(DriverInternalErrorException)
-                {
-                    // See Render3DEnvironment for information on this exception
-                    State.IsDeviceLost = true;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Fired when the control is resized
-        /// </summary>
-        private void OnResize(object sender, EventArgs e)
-        {
-            System.Windows.Forms.Form form = sender as System.Windows.Forms.Form;
-            System.Windows.Forms.Control control = sender as System.Windows.Forms.Control;
-
-            if (form != null)
-            {
-                if (form.WindowState == System.Windows.Forms.FormWindowState.Minimized)
-                {
-                    if ((State.IsCursorClippedWhenFullScreen) && !(IsWindowed) )
-                        System.Windows.Forms.Cursor.Clip = System.Drawing.Rectangle.Empty;
-                    State.IsMinimized = true;
-                    State.IsMaximized = false;
-                    Pause(true, true); // Pause while minimized
-                }
-                else
-                {
-                    if (State.IsMinimized)
-                    {
-                        Pause(false, false);
-                    }
-                    State.IsMinimized = false;
-                    State.IsMaximized = form.WindowState == System.Windows.Forms.FormWindowState.Maximized;
-
-                    // Resize
-                    HandlePossibleSizeChange();
-                }
-            }
-
-        }
-
-        /// <summary>
-        /// Fired when a key is pressed
-        /// </summary>
-        private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (State.IsHandlingDefaultHotkeys)
-            {
-                switch(e.KeyCode)
-                {
-                    case System.Windows.Forms.Keys.Enter:
-                        if (e.Alt) // Alt was pressed as well
-                        {
-                            // Toggle the full screen/window mode
-                            Pause(true, true);
-                            ToggleFullscreen();
-                            Pause(false, false);                        
-                            e.Handled = true;
-                        }
-                        break;
-                    case System.Windows.Forms.Keys.F2:
-                        ShowSettingsDialog(!State.IsD3DSettingsDialogShowing);
-                        break;
-                    case System.Windows.Forms.Keys.F3: // Toggle reference
-                        Pause(true, true);
-                        ToggleReference();
-                        Pause(false, false);
-                        break;
-
-                    case System.Windows.Forms.Keys.F8:
-                        State.IsInWireframeMode = !State.IsInWireframeMode;
-                        if (State.Device != null)
-                        {
-                            State.Device.RenderState.FillMode = State.IsInWireframeMode ? FillMode.WireFrame : FillMode.Solid;
-                        }
-                        break;
-
-                    case System.Windows.Forms.Keys.Escape:
-                        // Received key to exit app, check for a form to close
-                        if (WindowForm != null)
-                        {
-                            WindowForm.Close();
-                        }
-                        break;
-
-                    case System.Windows.Forms.Keys.Pause:
-                        bool isTimePaused = (State.PauseTimeCount > 0);
-                        isTimePaused = !isTimePaused;
-                        if (isTimePaused)
-                            Pause(true, false);
-                        else
-                            Pause(false, false);
-
-                        break;
-
-                }
-            }
-        }
-
-        /// <summary>
-        /// Fired when the cursor changes
-        /// </summary>
-        private void OnCursorChanged(object sender, EventArgs e)
-        {
-            // Turn off Windows cursor in full screen mode
-            if ( (!State.IsRenderingPaused) && (!IsWindowed) )
-            {
-                System.Windows.Forms.Cursor.Current = null;
-                if ( (State.Device != null) && State.IsShowingCursorWhenFullScreen)
-                    State.Device.ShowCursor(true);
-            }
-            else
-                System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
-        }
-
-        /// <summary>
-        /// Fired as the mouse moves
-        /// </summary>
-        private void OnMouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if ( (!State.IsRenderingPaused) && (!IsWindowed) )
-            {
-                if (State.Device != null)
-                {
-                    State.Device.SetCursorPosition(e.X, e.Y, false);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Fired when a form is closed
-        /// </summary>
-        private void OnFormClosed(object sender, EventArgs e)
-        {
-            // No more windows
-            State.WindowFocus = null;
-            State.WindowDeviceWindowed = null;
-            State.WindowDeviceFullScreen = null;
-        }
-
-        /// <summary>
-        /// Fired when a form is activated
-        /// </summary>
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            State.IsActive = true;
-        }
-
-        /// <summary>
-        /// Fired when a form is deactivated
-        /// </summary>
-        private void OnFormDeactivated(object sender, EventArgs e)
-        {
-            State.IsActive = false;
-        }
-
-        /// <summary>
-        /// Fired when a menu is started
-        /// </summary>
-        private void OnMenuStart(object sender, EventArgs e)
-        {
-            Pause(true, true);
-        }
-
-        /// <summary>
-        /// Fired when a menu is finished
-        /// </summary>
-        private void OnMenuEnd(object sender, EventArgs e)
-        {
-            Pause(false, false);
-        }
-
-        /// <summary>
-        /// Will hook all events required for a control
-        /// </summary>
-        private void HookEvents(System.Windows.Forms.Control c)
-        {
-            c.Paint += new System.Windows.Forms.PaintEventHandler(OnPaint);
-            c.Resize += new EventHandler(OnResize);
-            c.KeyDown += new System.Windows.Forms.KeyEventHandler(OnKeyDown);
-            c.CursorChanged += new EventHandler(OnCursorChanged);
-            c.MouseMove += new System.Windows.Forms.MouseEventHandler(OnMouseMove);
-            System.Windows.Forms.Form form = c as System.Windows.Forms.Form;
-            if (form != null)
-            {
-                // Hook form specific events
-                form.Closed += new EventHandler(OnFormClosed);
-                form.Activated += new EventHandler(OnFormActivated);
-                form.Deactivate += new EventHandler(OnFormDeactivated);
-                form.MenuStart += new EventHandler(OnMenuStart);
-                form.MenuComplete += new EventHandler(OnMenuEnd);
-            }
-        }
-        /// <summary>Handles window messages</summary>
-        internal void WindowsProcedure(ref System.Windows.Forms.Message m)
-        {
-            if (State.Settings != null && State.IsD3DSettingsDialogShowing)
-            {
-                State.Settings.HandleMessages(m.HWnd, (NativeMethods.WindowMessage)m.Msg, m.WParam, m.LParam);
-            }
-            else
-            {
-                if (State.WndProcFunction != null)
-                {
-                    bool doneProcessing = false;
-                    // Pass all messages to the app's MsgProc callback, and don't 
-                    // process further messages if the apps says not to.
-                    IntPtr result = State.WndProcFunction(m.HWnd, (NativeMethods.WindowMessage)m.Msg, m.WParam, m.LParam, ref doneProcessing);
-                    if (doneProcessing)
-                        m.Result = result;
-                }
-            }
-
-            switch((NativeMethods.WindowMessage)m.Msg)
-            {
-                case NativeMethods.WindowMessage.PowerBroadcast:
-                    if (m.WParam == IntPtr.Zero) // Query Suspend
-                    {
-                        // At this point, the app should save any data for open
-                        // network connections, files, etc., and prepare to go into
-                        // a suspended mode.  The app can use the MsgProc callback
-                        // to handle this if desired.
-                        m.Result = TrueIntPtr;
-                    }
-                    if (m.WParam.ToInt32() == 7) // Resume Suspend
-                    {
-                        // At this point, the app should recover any data, network
-                        // connections, files, etc., and resume running from when
-                        // the app was suspended. The app can use the MsgProc callback
-                        // to handle this if desired.
-
-                        // QPC may lose consistency when suspending, so reset the timer
-                        // upon resume.
-                        FrameworkTimer.Reset();
-                        State.LastStatsUpdateTime = 0;
-
-                        m.Result = TrueIntPtr;
-                    }
-                    break;
-                case NativeMethods.WindowMessage.SystemCommand:
-                    // Prevent moving/sizing and power loss in full screen mode
-                    const int SystemCommandSize = 0xF000;
-                    const int SystemCommandMove = 0xF010;
-                    const int SystemCommandMaximize = 0xF030;
-                    const int SystemCommandKeyMenu = 0xF100;
-                    const int SystemCommandMonitorPower = 0xF170;
-                    switch(m.WParam.ToInt32())
-                    {
-                        case SystemCommandSize:
-                        case SystemCommandMove:
-                        case SystemCommandMaximize:
-                        case SystemCommandKeyMenu:
-                        case SystemCommandMonitorPower:
-                            if (!IsWindowed)
-                                m.Result = TrueIntPtr;
-                            break;
-                    }
-                    break;
-            }
-        }
-        #endregion
-
-        /// <summary>
-        /// Handles app's message loop and rendering when idle.  If CreateDevice*() or SetDevice() 
-        /// has not already been called, it will call CreateDevice() with the default parameters.  
+        ///     Handles app's message loop and rendering when idle.  If CreateDevice*() or SetDevice()
+        ///     has not already been called, it will call CreateDevice() with the default parameters.
         /// </summary>
         public void MainLoop()
         {
             // No need to do anything if the framework is already disposed
             if (isDisposed)
-                return; 
+                return;
 
             // Not allowed to call this from inside the device callbacks or reenter
             if (State.IsInsideDeviceCallback || State.IsInsideMainloop)
             {
                 State.ApplicationExitCode = 1;
-                throw new InvalidOperationException("You cannot call this method from a callback, or reenter the method.");
+                throw new InvalidOperationException(
+                    "You cannot call this method from a callback, or reenter the method.");
             }
 
             // We're inside the loop now
@@ -3906,42 +3247,625 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Initialize() must have been called and succeeded for this function to proceed
             // CreateWindow() or SetWindow() must have been called and succeeded for this function to proceed
             // CreateDevice() or CreateDeviceFromSettings() or SetDevice() must have been called and succeeded for this function to proceed
-            if ( (!State.IsInited) || (!State.WasWindowCreated) || (!State.WasDeviceCreated) )
+            if (!State.IsInited || !State.WasWindowCreated || !State.WasDeviceCreated)
             {
                 State.ApplicationExitCode = 1;
                 throw new InvalidOperationException("The framework was not initialized, cannot continue.");
             }
 
-            using (System.Windows.Forms.Control app = Window)
+            using (var app = Window)
             {
                 // Hook the application's idle event
-                System.Windows.Forms.Application.Idle += new EventHandler(OnApplicationIdle);
+                Application.Idle += OnApplicationIdle;
                 // Start the application
-                if (app is System.Windows.Forms.Form)
+                if (app is Form)
                 {
-                    System.Windows.Forms.Application.Run(app as System.Windows.Forms.Form);
+                    Application.Run(app as Form);
                 }
                 else
                 {
                     // Show the window
                     app.Show();
-                    System.Windows.Forms.Application.Run();
+                    Application.Run();
                 }
             }
 
             State.IsInsideMainloop = false;
         }
 
+        #region Class Data
+
+        // Constants for command line arguments
+        private const string CmdAdapter = "adapter";
+        private const string CmdWindowed = "windowed";
+        private const string CmdFullscreen = "fullscreen";
+        private const string CmdForceHardware = "forcehal";
+        private const string CmdForceRef = "forceref";
+        private const string CmdPureHwVp = "forcepurehwvp";
+        private const string CmdForceHwVp = "forcehwvp";
+        private const string CmdForceSwVp = "forceswvp";
+        private const string CmdWidth = "width";
+        private const string CmdHeight = "height";
+        private const string CmdStartx = "startx";
+        private const string CmdStarty = "starty";
+        private const string CmdConstantFrame = "constantframetime";
+        private const string CmdQuitAfterFrame = "quitafterframe";
+        private const string CmdNoErrorBoxes = "noerrormsgboxes";
+        private const string CmdNoStats = "nostats";
+
+        // Delegate used for disposing application
+        private delegate void DisposeDelegate();
+
+        // Constants for minimum window size
+        private const int MinimumWindowSizeX = 200;
+        private const int MinimumWindowSizeY = 200;
+        public const int DefaultSizeWidth = 640;
+
+        public const int DefaultSizeHeight = 480;
+
+        // Default starting size
+        private static readonly Size DefaultStartingSize = new Size(DefaultSizeWidth, DefaultSizeHeight);
+        internal static readonly Size MinWindowSize = new Size(MinimumWindowSizeX, MinimumWindowSizeY);
+        public static readonly IntPtr TrueIntPtr = new IntPtr(1);
+        private const string WindowClassName = "ManagedDirect3DWindowClass";
+
+        // What about the stored data?
+        private FrameworkData State;
+
+        // Last shown error
+        private Exception lastDisplayedMessage;
+
+        // Has the framework been disposed already
+        private bool isDisposed;
+
+        // Did the toggle fullscreen happen when maximized?
+        private bool toggleMaximized;
+
+        #endregion
+
+        #region Setting up callbacks
+
+        // Interface 'callbacks'
+        public void SetCallbackInterface(IFrameworkCallback callback)
+        {
+            State.CallbackInterface = callback;
+        }
+
+        public void SetDeviceCreationInterface(IDeviceCreation callback)
+        {
+            State.DeviceCreationInterface = callback;
+        }
+
+        // Event 'callbacks'
+
+        /// <summary>The event fired for disposing of the device</summary>
+        public event EventHandler Disposing;
+
+        /// <summary>The event fired for when the device is lost</summary>
+        public event EventHandler DeviceLost;
+
+        /// <summary>The event fired for when the device is created</summary>
+        public event DeviceEventHandler DeviceCreated;
+
+        /// <summary>The event fired for when the device is reset</summary>
+        public event DeviceEventHandler DeviceReset;
+
+        public void SetWndProcCallback(WndProcCallback callback)
+        {
+            State.WndProcFunction = callback;
+        }
+
+        #endregion
+
+        #region External state access functions
+
+        /// <summary>
+        ///     Returns the device current in use for the framework
+        /// </summary>
+        public Device Device => State.Device;
+
+        /// <summary>
+        ///     Returns the back buffer surface description
+        /// </summary>
+        public SurfaceDescription BackBufferSurfaceDescription => State.BackBufferSurfaceDesc;
+
+        /// <summary>
+        ///     Returns the device capabilities
+        /// </summary>
+        public Caps DeviceCaps => State.Caps;
+
+        /// <summary>
+        ///     Get the current window used for rendering
+        /// </summary>
+        public System.Windows.Forms.Control Window =>
+            IsWindowed ? State.WindowDeviceWindowed : State.WindowDeviceFullScreen;
+
+        /// <summary>
+        ///     Get the current window used for rendering
+        /// </summary>
+        public Form WindowForm => Window as Form;
+
+        /// <summary>
+        ///     Get the current focus window
+        /// </summary>
+        public System.Windows.Forms.Control WindowFocus => State.WindowFocus;
+
+        /// <summary>
+        ///     Get the current window used for windowed rendering
+        /// </summary>
+        public System.Windows.Forms.Control WindowDeviceWindowed => State.WindowDeviceWindowed;
+
+        /// <summary>
+        ///     Get the current window used for full screen rendering
+        /// </summary>
+        public System.Windows.Forms.Control WindowDeviceFullscreen => State.WindowDeviceFullScreen;
+
+        /// <summary>
+        ///     Client rectangle size
+        /// </summary>
+        public Rectangle WindowClientRectangle => State.ClientRectangle;
+
+        /// <summary>
+        ///     Client rectangle size
+        /// </summary>
+        public Rectangle ClientRectangle => IsWindowed ? State.ClientRectangle : State.FullScreenClientRectangle;
+
+        /// <summary>
+        ///     Return if windowed in the current device.  If no device exists yet, return false
+        /// </summary>
+        public bool IsWindowed
+        {
+            get
+            {
+                var settings = State.CurrentDeviceSettings;
+                if (settings != null && settings.presentParams != null)
+                    return settings.presentParams.Windowed;
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        ///     Frame statistics
+        /// </summary>
+        public string FrameStats => State.FrameStats;
+
+        /// <summary>
+        ///     Device statistics
+        /// </summary>
+        public string DeviceStats => State.DeviceStats;
+
+        /// <summary>
+        ///     Frames per second application is running at
+        /// </summary>
+        public float FPS => State.CurrentFrameRate;
+
+        /// <summary>
+        ///     Returns whether the settings is showing
+        /// </summary>
+        public bool IsD3DSettingsDialogShowing => State.IsD3DSettingsDialogShowing;
+
+        /// <summary>
+        ///     Returns whether the framework is showing errors
+        /// </summary>
+        public bool IsShowingMsgBoxOnError => State.IsShowingMsgBoxOnError;
+
+        /// <summary>
+        ///     Return the device settings of the current device.  If no device exists yet, then
+        ///     return blank device settings
+        /// </summary>
+        public DeviceSettings DeviceSettings
+        {
+            get
+            {
+                if (State.CurrentDeviceSettings != null)
+                    return State.CurrentDeviceSettings;
+                return new DeviceSettings();
+            }
+        }
+
+        /// <summary>
+        ///     Return the present params of the current device.  If no device exists yet, then
+        ///     return blank present params
+        /// </summary>
+        public PresentParameters PresentParameters
+        {
+            get
+            {
+                if (State.CurrentDeviceSettings != null)
+                    return State.CurrentDeviceSettings.presentParams;
+                return new PresentParameters();
+            }
+        }
+
+        /// <summary>Should the framework also notify for mouse moves</summary>
+        public bool IsNotifiedOnMouseMove
+        {
+            get => State.IsNotifiedOnMouseMove;
+            set => State.IsNotifiedOnMouseMove = value;
+        }
+
+        /// <summary>Should the framework override and start fullscreen?</summary>
+        public bool IsOverridingFullScreen
+        {
+            get => State.IsOverridingFullScreen;
+            set => State.IsOverridingFullScreen = value;
+        }
+
+        /// <summary>Should the framework ignore size changes?</summary>
+        public bool IsIgnoringSizeChanges
+        {
+            get => State.AreSizeChangesIgnored;
+            set => State.AreSizeChangesIgnored = value;
+        }
+
+        /// <summary>Resets the state associated with the sample framework</summary>
+        public void ResetState()
+        {
+            State = new FrameworkData();
+        }
+
+        #endregion
+
+        #region Timer Callbacks
+
+        /// <summary>Adds a timer to the list of timers for the application</summary>
+        /// <returns>A unqiue id of the timer</returns>
+        public int SetTimer(TimerCallback callbackTimer, float timeoutInSeconds)
+        {
+            if (callbackTimer == null)
+                throw new ArgumentNullException("callbackTimer", "You must pass in a valid timer callback .");
+
+            var timer = new TimerData();
+            timer.callback = callbackTimer;
+            timer.Countdown = timeoutInSeconds;
+            timer.TimeoutInSecs = timeoutInSeconds;
+            timer.IsEnabled = true;
+
+            State.Timers.Add(timer);
+            return State.Timers.Count;
+        }
+
+        /// <summary>Kills an already created timer</summary>
+        public void KillTimer(int id)
+        {
+            if (id < State.Timers.Count)
+            {
+                var timer = (TimerData) State.Timers[id];
+                timer.IsEnabled = false;
+                State.Timers[id] = timer;
+            }
+            else
+            {
+                throw new ArgumentException("An invalid timer ID was passed in", "id");
+            }
+        }
+
+        /// <summary>public helper function to handle calling the user defined timer callbacks</summary>
+        private void HandleTimers()
+        {
+            var elapsedTime = State.ElapsedTime;
+
+            // Walk through the list of timers
+            for (var i = 0; i < State.Timers.Count; i++)
+            {
+                var ft = (TimerData) State.Timers[i];
+                if (ft.IsEnabled)
+                {
+                    ft.Countdown -= elapsedTime;
+                    // Call the callback if the countdown expired
+                    if (ft.Countdown < 0)
+                    {
+                        ft.callback((uint) i);
+                        ft.Countdown = ft.TimeoutInSecs;
+                    }
+
+                    State.Timers[i] = ft;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Window Message Handling
+
+        /// <summary>
+        ///     Fired when the window needs to be repainted
+        /// </summary>
+        private void OnPaint(object sender, PaintEventArgs e)
+        {
+            // Handle paint messages when the app is paused
+            if (State.Device != null && State.AreDeviceObjectsCreated &&
+                State.AreDeviceObjectsReset && State.IsRenderingPaused)
+            {
+                var time = State.CurrentTime;
+                var elapsedTime = State.ElapsedTime;
+
+                if (State.Settings != null && State.IsD3DSettingsDialogShowing)
+                {
+                    // Clear the render target and the zbuffer 
+                    State.Device.Clear(ClearFlags.Target, 0x00003F3F, 1.0f, 0);
+
+                    // Render the scene
+                    State.Device.BeginScene();
+                    State.Settings.OnRender(elapsedTime);
+                    State.Device.EndScene();
+                }
+                else
+                {
+                    if (State.CallbackInterface != null)
+                        State.CallbackInterface.OnFrameRender(State.Device, time, elapsedTime);
+                }
+
+                // Now try to present
+                try
+                {
+                    State.Device.Present();
+                }
+                catch (DeviceLostException)
+                {
+                    // Device was lost
+                    State.IsDeviceLost = true;
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Fired when the control is resized
+        /// </summary>
+        private void OnResize(object sender, EventArgs e)
+        {
+            var form = sender as Form;
+            var control = sender as System.Windows.Forms.Control;
+
+            if (form != null)
+            {
+                if (form.WindowState == FormWindowState.Minimized)
+                {
+                    if (State.IsCursorClippedWhenFullScreen && !IsWindowed)
+                        Cursor.Clip = Rectangle.Empty;
+                    State.IsMinimized = true;
+                    State.IsMaximized = false;
+                    Pause(true, true); // Pause while minimized
+                }
+                else
+                {
+                    if (State.IsMinimized) Pause(false, false);
+                    State.IsMinimized = false;
+                    State.IsMaximized = form.WindowState == FormWindowState.Maximized;
+
+                    // Resize
+                    HandlePossibleSizeChange();
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Fired when a key is pressed
+        /// </summary>
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (State.IsHandlingDefaultHotkeys)
+                switch (e.KeyCode)
+                {
+                    case Keys.Enter:
+                        if (e.Alt) // Alt was pressed as well
+                        {
+                            // Toggle the full screen/window mode
+                            Pause(true, true);
+                            ToggleFullscreen();
+                            Pause(false, false);
+                            e.Handled = true;
+                        }
+
+                        break;
+                    case Keys.F2:
+                        ShowSettingsDialog(!State.IsD3DSettingsDialogShowing);
+                        break;
+                    case Keys.F3: // Toggle reference
+                        Pause(true, true);
+                        ToggleReference();
+                        Pause(false, false);
+                        break;
+
+                    case Keys.F8:
+                        State.IsInWireframeMode = !State.IsInWireframeMode;
+                        if (State.Device != null)
+                            State.Device.RenderState.FillMode =
+                                State.IsInWireframeMode ? FillMode.WireFrame : FillMode.Solid;
+                        break;
+
+                    case Keys.Escape:
+                        // Received key to exit app, check for a form to close
+                        if (WindowForm != null) WindowForm.Close();
+                        break;
+
+                    case Keys.Pause:
+                        var isTimePaused = State.PauseTimeCount > 0;
+                        isTimePaused = !isTimePaused;
+                        if (isTimePaused)
+                            Pause(true, false);
+                        else
+                            Pause(false, false);
+
+                        break;
+                }
+        }
+
+        /// <summary>
+        ///     Fired when the cursor changes
+        /// </summary>
+        private void OnCursorChanged(object sender, EventArgs e)
+        {
+            // Turn off Windows cursor in full screen mode
+            if (!State.IsRenderingPaused && !IsWindowed)
+            {
+                Cursor.Current = null;
+                if (State.Device != null && State.IsShowingCursorWhenFullScreen)
+                    State.Device.ShowCursor(true);
+            }
+            else
+            {
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        /// <summary>
+        ///     Fired as the mouse moves
+        /// </summary>
+        private void OnMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!State.IsRenderingPaused && !IsWindowed)
+                if (State.Device != null)
+                    State.Device.SetCursorPosition(e.X, e.Y, false);
+        }
+
+        /// <summary>
+        ///     Fired when a form is closed
+        /// </summary>
+        private void OnFormClosed(object sender, EventArgs e)
+        {
+            // No more windows
+            State.WindowFocus = null;
+            State.WindowDeviceWindowed = null;
+            State.WindowDeviceFullScreen = null;
+        }
+
+        /// <summary>
+        ///     Fired when a form is activated
+        /// </summary>
+        private void OnFormActivated(object sender, EventArgs e)
+        {
+            State.IsActive = true;
+        }
+
+        /// <summary>
+        ///     Fired when a form is deactivated
+        /// </summary>
+        private void OnFormDeactivated(object sender, EventArgs e)
+        {
+            State.IsActive = false;
+        }
+
+        /// <summary>
+        ///     Fired when a menu is started
+        /// </summary>
+        private void OnMenuStart(object sender, EventArgs e)
+        {
+            Pause(true, true);
+        }
+
+        /// <summary>
+        ///     Fired when a menu is finished
+        /// </summary>
+        private void OnMenuEnd(object sender, EventArgs e)
+        {
+            Pause(false, false);
+        }
+
+        /// <summary>
+        ///     Will hook all events required for a control
+        /// </summary>
+        private void HookEvents(System.Windows.Forms.Control c)
+        {
+            c.Paint += OnPaint;
+            c.Resize += OnResize;
+            c.KeyDown += OnKeyDown;
+            c.CursorChanged += OnCursorChanged;
+            c.MouseMove += OnMouseMove;
+            var form = c as Form;
+            if (form != null)
+            {
+                // Hook form specific events
+                form.Closed += OnFormClosed;
+                form.Activated += OnFormActivated;
+                form.Deactivate += OnFormDeactivated;
+                form.MenuStart += OnMenuStart;
+                form.MenuComplete += OnMenuEnd;
+            }
+        }
+
+        /// <summary>Handles window messages</summary>
+        internal void WindowsProcedure(ref Message m)
+        {
+            if (State.Settings != null && State.IsD3DSettingsDialogShowing)
+            {
+                State.Settings.HandleMessages(m.HWnd, (NativeMethods.WindowMessage) m.Msg, m.WParam, m.LParam);
+            }
+            else
+            {
+                if (State.WndProcFunction != null)
+                {
+                    var doneProcessing = false;
+                    // Pass all messages to the app's MsgProc callback, and don't 
+                    // process further messages if the apps says not to.
+                    var result = State.WndProcFunction(m.HWnd, (NativeMethods.WindowMessage) m.Msg, m.WParam, m.LParam,
+                        ref doneProcessing);
+                    if (doneProcessing)
+                        m.Result = result;
+                }
+            }
+
+            switch ((NativeMethods.WindowMessage) m.Msg)
+            {
+                case NativeMethods.WindowMessage.PowerBroadcast:
+                    if (m.WParam == IntPtr.Zero) // Query Suspend
+                        // At this point, the app should save any data for open
+                        // network connections, files, etc., and prepare to go into
+                        // a suspended mode.  The app can use the MsgProc callback
+                        // to handle this if desired.
+                        m.Result = TrueIntPtr;
+                    if (m.WParam.ToInt32() == 7) // Resume Suspend
+                    {
+                        // At this point, the app should recover any data, network
+                        // connections, files, etc., and resume running from when
+                        // the app was suspended. The app can use the MsgProc callback
+                        // to handle this if desired.
+
+                        // QPC may lose consistency when suspending, so reset the timer
+                        // upon resume.
+                        FrameworkTimer.Reset();
+                        State.LastStatsUpdateTime = 0;
+
+                        m.Result = TrueIntPtr;
+                    }
+
+                    break;
+                case NativeMethods.WindowMessage.SystemCommand:
+                    // Prevent moving/sizing and power loss in full screen mode
+                    const int SystemCommandSize = 0xF000;
+                    const int SystemCommandMove = 0xF010;
+                    const int SystemCommandMaximize = 0xF030;
+                    const int SystemCommandKeyMenu = 0xF100;
+                    const int SystemCommandMonitorPower = 0xF170;
+                    switch (m.WParam.ToInt32())
+                    {
+                        case SystemCommandSize:
+                        case SystemCommandMove:
+                        case SystemCommandMaximize:
+                        case SystemCommandKeyMenu:
+                        case SystemCommandMonitorPower:
+                            if (!IsWindowed)
+                                m.Result = TrueIntPtr;
+                            break;
+                    }
+
+                    break;
+            }
+        }
+
+        #endregion
+
         #region App Idle Events
+
         /// <summary>Fired when the application first gets idle</summary>
         private void OnApplicationIdle(object sender, EventArgs e)
         {
             while (AppStillIdle)
-            {
                 // Render a frame during idle time (no messages are waiting)
                 Render3DEnvironment();
-            }
         }
+
         /// <summary>Checks to see if the application is still idle</summary>
         private bool AppStillIdle
         {
@@ -3951,9 +3875,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 return !NativeMethods.PeekMessage(out msg, IntPtr.Zero, 0, 0, 0);
             }
         }
+
         #endregion
 
         #region IDisposable Members
+
         /// <summary>Shut down the sample framework</summary>
         public void Dispose()
         {
@@ -3968,17 +3894,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                 // Now shut down the system
                 if (Window != null)
-                {
                     // If we have a window, use BeginInvoke to start shutdown
-                    Window.BeginInvoke(new DisposeDelegate(this.Shutdown));
-                }
+                    Window.BeginInvoke(new DisposeDelegate(Shutdown));
                 else
-                {
                     // Otherwise, call it directly
                     Shutdown();
-                }
             }
-            
+
             // The object has now been disposed
             isDisposed = true;
         }
@@ -3988,24 +3910,23 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             Dispose();
         }
+
         #endregion
 
         #region Device event handlers
+
         /// <summary>Fired when the device is disposing</summary>
         private void OnDeviceDisposing(object sender, EventArgs e)
         {
             // Mark as being inside a callback
             State.IsInsideDeviceCallback = true;
- 
+
             // Release all vidmem objects
             if (State.AreDeviceObjectsReset)
             {
                 DialogResourceManager.GetGlobalInstance().OnDestroyDevice();
                 ResourceCache.GetGlobalInstance().OnDestroyDevice();
-                if (State.Settings != null)
-                {
-                    State.Settings.OnDestroyDevice( this, EventArgs.Empty);
-                }
+                if (State.Settings != null) State.Settings.OnDestroyDevice(this, EventArgs.Empty);
                 State.AreDeviceObjectsCreated = false;
             }
 
@@ -4022,16 +3943,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             // Mark as being inside a callback
             State.IsInsideDeviceCallback = true;
- 
+
             // Release all vidmem objects
             if (State.AreDeviceObjectsReset)
             {
                 DialogResourceManager.GetGlobalInstance().OnLostDevice();
                 ResourceCache.GetGlobalInstance().OnLostDevice();
-                if (State.Settings != null)
-                {
-                    State.Settings.OnLostDevice();
-                }
+                if (State.Settings != null) State.Settings.OnLostDevice();
                 State.AreDeviceObjectsReset = false;
             }
 
@@ -4048,7 +3966,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             // Get the device
             Device device = sender as Device;
-            System.Diagnostics.Debug.Assert(device != null, "Must have a device here.");
+            Debug.Assert(device != null, "Must have a device here.");
 
             // Mark as being inside a callback
             State.IsInsideDeviceCallback = true;
@@ -4056,7 +3974,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Prepare the device with cursor info and 
             // store backbuffer desc and caps from the device
             PrepareDevice(device);
- 
+
             if (State.Settings != null)
                 State.Settings.OnResetDevice();
 
@@ -4074,7 +3992,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Now you're not
             State.IsInsideDeviceCallback = false;
         }
-        #endregion
 
+        #endregion
     }
 }

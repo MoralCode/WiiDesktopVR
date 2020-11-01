@@ -5,9 +5,10 @@
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //--------------------------------------------------------------------------------------
+
 using System;
-using Microsoft.DirectX;
-using Microsoft.DirectX.Direct3D;
+using System.Diagnostics;
+using System.IO;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
@@ -15,43 +16,59 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
     public sealed class FrameworkMesh : IDisposable
     {
         #region Instance Data
-        private string meshFileName;
+
+        private readonly string meshFileName;
         private Mesh systemMemoryMesh = null; // System Memory mesh, lives through a resize
         private Mesh localMemoryMesh = null; // Local mesh, rebuilt on resize
 
-        private Material[] meshMaterials = null; // Materials for the mesh
-        private BaseTexture[] meshTextures = null; // Textures for the mesh
-        private bool isUsingMeshMaterials = true; // Should the mesh be rendered with the materials
+        private Material[] meshMaterials; // Materials for the mesh
+        private BaseTexture[] meshTextures; // Textures for the mesh
 
         /// <summary>Returns the system memory mesh</summary>
-        public Mesh SystemMesh { get { return systemMemoryMesh; } }
+        public Mesh SystemMesh => systemMemoryMesh;
+
         /// <summary>Returns the local memory mesh</summary>
-        public Mesh LocalMesh { get { return localMemoryMesh; } }
+        public Mesh LocalMesh => localMemoryMesh;
+
         /// <summary>Should the mesh be rendered with materials</summary>
-        public bool IsUsingMaterials{ get { return isUsingMeshMaterials; } set { isUsingMeshMaterials = value; } }
+        public bool IsUsingMaterials { get; set; } = true;
+
         /// <summary>Number of materials in mesh</summary>
-        public int NumberMaterials { get { return meshMaterials.Length; } }
+        public int NumberMaterials => meshMaterials.Length;
+
         /// <summary>Gets a texture from the mesh</summary>
-        public BaseTexture GetTexture(int index) { return meshTextures[index]; }
+        public BaseTexture GetTexture(int index)
+        {
+            return meshTextures[index];
+        }
+
         /// <summary>Gets a material from the mesh</summary>
-        public Material GetMaterial(int index) { return meshMaterials[index]; }
+        public Material GetMaterial(int index)
+        {
+            return meshMaterials[index];
+        }
+
         #endregion
 
         #region Creation
+
         /// <summary>Create a new mesh using this file</summary>
         public FrameworkMesh(Device device, string name)
         {
             meshFileName = name;
             Create(device, meshFileName);
         }
+
         /// <summary>Create a new mesh</summary>
-        public FrameworkMesh() : this(null, "FrameworkMeshFile_Mesh") {}
-        
+        public FrameworkMesh() : this(null, "FrameworkMeshFile_Mesh")
+        {
+        }
+
         /// <summary>Create the mesh data</summary>
         public void Create(Device device, string name)
         {
             // Hook the device events
-            System.Diagnostics.Debug.Assert(device != null, "Device should not be null.");
+            Debug.Assert(device != null, "Device should not be null.");
             device.DeviceLost += new EventHandler(OnLostDevice);
             device.DeviceReset += new EventHandler(OnResetDevice);
             device.Disposing += new EventHandler(OnDeviceDisposing);
@@ -60,37 +77,33 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             ExtendedMaterial[] materials; // Mesh material information
 
             // First try to find the filename
-            string path = string.Empty;
+            var path = string.Empty;
             try
             {
                 path = Utility.FindMediaFile(name);
             }
-            catch(MediaNotFoundException)
+            catch (MediaNotFoundException)
             {
                 // The media was not found, maybe a full path was passed in?
-                if (System.IO.File.Exists(name))
-                {
+                if (File.Exists(name))
                     path = name;
-                }
                 else
-                {
                     // No idea what this is trying to find
                     throw new MediaNotFoundException();
-                }
             }
 
             // Now load the mesh
-            systemMemoryMesh = Mesh.FromFile(path, MeshFlags.SystemMemory, device, out adjacency, 
+            systemMemoryMesh = Mesh.FromFile(path, MeshFlags.SystemMemory, device, out adjacency,
                 out materials);
 
             using (adjacency)
             {
                 // Optimize the mesh for performance
-                systemMemoryMesh.OptimizeInPlace(MeshFlags.OptimizeVertexCache | MeshFlags.OptimizeCompact | 
-                    MeshFlags.OptimizeAttributeSort, adjacency);
+                systemMemoryMesh.OptimizeInPlace(MeshFlags.OptimizeVertexCache | MeshFlags.OptimizeCompact |
+                                                 MeshFlags.OptimizeAttributeSort, adjacency);
 
                 // Find the folder of where the mesh file is located
-                string folder = Utility.AppendDirectorySeparator(new System.IO.FileInfo(path).DirectoryName);
+                var folder = Utility.AppendDirectorySeparator(new FileInfo(path).DirectoryName);
 
                 // Create the materials
                 CreateMaterials(folder, device, adjacency, materials);
@@ -102,27 +115,28 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         // TODO: Create with XOF
 
         /// <summary>Create the materials for the mesh</summary>
-        public void CreateMaterials(string folder, Device device, GraphicsStream adjacency, ExtendedMaterial[] materials)
+        public void CreateMaterials(string folder, Device device, GraphicsStream adjacency,
+            ExtendedMaterial[] materials)
         {
             // Does the mesh have materials?
-            if ((materials != null) && (materials.Length > 0))
+            if (materials != null && materials.Length > 0)
             {
                 // Allocate the arrays for the materials
                 meshMaterials = new Material[materials.Length];
                 meshTextures = new BaseTexture[materials.Length];
 
                 // Copy each material and create it's texture
-                for(int i = 0; i < materials.Length; i++)
+                for (var i = 0; i < materials.Length; i++)
                 {
                     // Copy the material first
                     meshMaterials[i] = materials[i].Material3D;
-                    
+
                     // Is there a texture for this material?
-                    if ((materials[i].TextureFilename == null) || (materials[i].TextureFilename.Length == 0) )
+                    if (materials[i].TextureFilename == null || materials[i].TextureFilename.Length == 0)
                         continue; // No, just continue now
 
                     ImageInformation info = new ImageInformation();
-                    string textureFile = folder + materials[i].TextureFilename;
+                    var textureFile = folder + materials[i].TextureFilename;
                     try
                     {
                         // First look for the texture in the same folder as the input folder
@@ -142,6 +156,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                             continue;
                         }
                     }
+
                     switch (info.ResourceType)
                     {
                         case ResourceType.Textures:
@@ -157,16 +172,18 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 }
             }
         }
+
         #endregion
 
         #region Class Methods
+
         /// <summary>Updates the mesh to a new vertex format</summary>
         public void SetVertexFormat(Device device, VertexFormats format)
         {
             Mesh tempSystemMesh = null;
             Mesh tempLocalMesh = null;
             VertexFormats oldFormat = VertexFormats.None;
-            using(systemMemoryMesh)
+            using (systemMemoryMesh)
             {
                 using (localMemoryMesh)
                 {
@@ -177,11 +194,10 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         tempSystemMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value,
                             format, device);
                     }
+
                     if (localMemoryMesh != null)
-                    {
                         tempLocalMesh = localMemoryMesh.Clone(localMemoryMesh.Options.Value,
-                            format, device); 
-                    }
+                            format, device);
                 }
             }
 
@@ -190,7 +206,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             localMemoryMesh = tempLocalMesh;
 
             // Compute normals if they are being requested and the old mesh didn't have them
-            if ( ((oldFormat & VertexFormats.Normal) == 0) && (format != 0) )
+            if ((oldFormat & VertexFormats.Normal) == 0 && format != 0)
             {
                 if (systemMemoryMesh != null)
                     systemMemoryMesh.ComputeNormals();
@@ -198,13 +214,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     localMemoryMesh.ComputeNormals();
             }
         }
+
         /// <summary>Updates the mesh to a new vertex declaration</summary>
         public void SetVertexDeclaration(Device device, VertexElement[] decl)
         {
             Mesh tempSystemMesh = null;
             Mesh tempLocalMesh = null;
             VertexElement[] oldDecl = null;
-            using(systemMemoryMesh)
+            using (systemMemoryMesh)
             {
                 using (localMemoryMesh)
                 {
@@ -215,41 +232,37 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         tempSystemMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value,
                             decl, device);
                     }
+
                     if (localMemoryMesh != null)
-                    {
                         tempLocalMesh = localMemoryMesh.Clone(localMemoryMesh.Options.Value,
-                            decl, device); 
-                    }
+                            decl, device);
                 }
             }
 
             // Store the new meshes
             systemMemoryMesh = tempSystemMesh;
             localMemoryMesh = tempLocalMesh;
-            
-            bool hadNormal = false;
+
+            var hadNormal = false;
             // Check if the old declaration contains a normal.
-            for(int i = 0; i < oldDecl.Length; i++)
-            {
+            for (var i = 0; i < oldDecl.Length; i++)
                 if (oldDecl[i].DeclarationUsage == DeclarationUsage.Normal)
                 {
                     hadNormal = true;
                     break;
                 }
-            }
+
             // Check to see if the new declaration has a normal
-            bool hasNormalNow = false;
-            for(int i = 0; i < decl.Length; i++)
-            {
+            var hasNormalNow = false;
+            for (var i = 0; i < decl.Length; i++)
                 if (decl[i].DeclarationUsage == DeclarationUsage.Normal)
                 {
                     hasNormalNow = true;
                     break;
                 }
-            }
 
             // Compute normals if they are being requested and the old mesh didn't have them
-            if ( !hadNormal && hasNormalNow )
+            if (!hadNormal && hasNormalNow)
             {
                 if (systemMemoryMesh != null)
                     systemMemoryMesh.ComputeNormals();
@@ -267,7 +280,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Make a local memory version of the mesh. Note: because we are passing in
             // no flags, the default behavior is to clone into local memory.
-            localMemoryMesh = systemMemoryMesh.Clone((systemMemoryMesh.Options.Value & ~MeshFlags.SystemMemory), 
+            localMemoryMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value & ~MeshFlags.SystemMemory,
                 systemMemoryMesh.VertexFormat, device);
         }
 
@@ -279,6 +292,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             localMemoryMesh = null;
         }
+
         /// <summary>Renders this mesh</summary>
         public void Render(Device device, bool canDrawOpaque, bool canDrawAlpha)
         {
@@ -287,10 +301,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Frist, draw the subsets without alpha
             if (canDrawOpaque)
-            {
-                for (int i = 0; i < meshMaterials.Length; i++)
+                for (var i = 0; i < meshMaterials.Length; i++)
                 {
-                    if (isUsingMeshMaterials)
+                    if (IsUsingMaterials)
                     {
                         if (meshMaterials[i].DiffuseColor.Alpha < 1.0f)
                             continue; // Only drawing opaque right now
@@ -299,14 +312,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         device.Material = meshMaterials[i];
                         device.SetTexture(0, meshTextures[i]);
                     }
+
                     localMemoryMesh.DrawSubset(i);
                 }
-            }
 
             // Then, draw the subsets with alpha
             if (canDrawAlpha)
-            {
-                for (int i = 0; i < meshMaterials.Length; i++)
+                for (var i = 0; i < meshMaterials.Length; i++)
                 {
                     if (meshMaterials[i].DiffuseColor.Alpha == 1.0f)
                         continue; // Only drawing non-opaque right now
@@ -316,10 +328,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     device.SetTexture(0, meshTextures[i]);
                     localMemoryMesh.DrawSubset(i);
                 }
-            }
         }
+
         /// <summary>Renders this mesh</summary>
-        public void Render(Device device) { Render(device, true, true); }
+        public void Render(Device device)
+        {
+            Render(device, true, true);
+        }
 
         // TODO: Render with effect
 
@@ -338,7 +353,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 data = systemMemoryMesh.LockVertexBuffer(LockFlags.ReadOnly);
                 // Now compute the bounding sphere
-                return Geometry.ComputeBoundingSphere(data, systemMemoryMesh.NumberVertices, 
+                return Geometry.ComputeBoundingSphere(data, systemMemoryMesh.NumberVertices,
                     systemMemoryMesh.VertexFormat, out center);
             }
             finally
@@ -348,6 +363,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     systemMemoryMesh.UnlockVertexBuffer();
             }
         }
+
         #endregion
 
         #region IDisposable Members
@@ -357,13 +373,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             OnLostDevice(null, EventArgs.Empty);
             if (meshTextures != null)
-            {
-                for(int i = 0; i < meshTextures.Length; i++)
-                {
+                for (var i = 0; i < meshTextures.Length; i++)
                     if (meshTextures[i] != null)
                         meshTextures[i].Dispose();
-                }
-            }
             meshTextures = null;
             meshMaterials = null;
 
@@ -371,7 +383,6 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 systemMemoryMesh.Dispose();
 
             systemMemoryMesh = null;
-
         }
 
         /// <summary>Cleans up any resources required when this object is disposed</summary>
@@ -380,7 +391,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Just dispose of our class
             Dispose();
         }
-        #endregion
 
+        #endregion
     }
 }
