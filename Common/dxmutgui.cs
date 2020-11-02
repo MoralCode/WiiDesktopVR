@@ -499,8 +499,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Element for the caption
             //-------------------------------------
             captionElement = new Element();
-            captionElement.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
-            captionElement.SetTexture(0, Rectangle.FromLTRB(17, 269, 241, 287));
+            captionElement.SetFont(0, WhiteColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+            captionElement.SetTexture(0, new Rectangle(17, 287, 241-17, 269-287));
             captionElement.TextureColor.States[(int) ControlState.Normal] = WhiteColor;
             captionElement.FontColor.States[(int) ControlState.Normal] = WhiteColor;
             // Pre-blend as we don't need to transition the state
@@ -520,7 +520,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // Button - Button
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(0, 0, 136, 54));
+            e.SetTexture(0, new Rectangle(0, 0, 136, 54));
             e.SetFont(0);
             e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
             e.TextureColor.States[(int) ControlState.Pressed] = new Color(1.0f, 1.0f, 1.0f, 0.85f);
@@ -531,7 +531,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // Button - Fill Layer
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(136, 0, 252, 54), TransparentWhite);
+            e.SetTexture(0,new Rectangle(136, 0, 252 - 136, 54), TransparentWhite);
             e.TextureColor.States[(int) ControlState.MouseOver] = new Color(1.0f, 1.0f, 1.0f, 0.6f);
             e.TextureColor.States[(int) ControlState.Pressed] = new Color(0, 0, 0, 0.25f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.05f);
@@ -542,8 +542,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // CheckBox - Box
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(0, 54, 27, 81));
-            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
+            e.SetTexture(0,new Rectangle(0, 54, 27, 81-54));
+            e.SetFont(0, WhiteColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             e.FontColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.8f);
             e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.8f);
@@ -554,15 +554,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // CheckBox - Check
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(27, 54, 54, 81));
+            e.SetTexture(0,new Rectangle(27, 54, 54-27, 81-54));
             // Assign the element
             SetDefaultElement(ControlType.CheckBox, Checkbox.CheckLayer, e);
 
             //-------------------------------------
             // RadioButton - Box
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(54, 54, 81, 81));
-            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.VerticalCenter);
+            e.SetTexture(0,new Rectangle(54, 54, 81-54, 81-54));
+            e.SetFont(0, WhiteColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             e.FontColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 0.8f);
             e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.8f);
@@ -573,14 +573,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // RadioButton - Check
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(81, 54, 108, 81));
+            e.SetTexture(0,new Rectangle(81, 54, 108-81, 81-54));
             // Assign the element
             SetDefaultElement(ControlType.RadioButton, Checkbox.CheckLayer, e);
 
             //-------------------------------------
             // ComboBox - Main
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(7, 81, 247, 123));
+            e.SetTexture(0,new Rectangle(7, 81, 247-7, 123-81));
             e.SetFont(0);
             e.TextureColor.States[(int) ControlState.Normal] = new Color(0.8f, 0.8f, 0.8f, 0.55f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(0.95f, 0.95f, 0.95f, 0.6f);
@@ -594,7 +594,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // ComboBox - Button
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(98, 189, 151, 238));
+            e.SetTexture(0,new Rectangle(98, 189, 151-98, 238-189));
             e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
             e.TextureColor.States[(int) ControlState.Pressed] = new Color(0.55f, 0.55f, 0.55f, 1.0f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.75f);
@@ -605,23 +605,23 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // ComboBox - Dropdown
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(13, 123, 241, 160));
-            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetTexture(0, new Rectangle(13, 160, 241-13, 123-160));
+            e.SetFont(0, BlackColor, TextFormatFlags.Left | TextFormatFlags.Top);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.DropdownLayer, e);
 
             //-------------------------------------
             // ComboBox - Selection
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(12, 163, 239, 183));
-            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetTexture(0, new Rectangle(12, 183, 239-12, 163-183));
+            e.SetFont(0, WhiteColor, TextFormatFlags.Left | TextFormatFlags.Top);
             // Assign the element
             SetDefaultElement(ControlType.ComboBox, ComboBox.SelectionLayer, e);
 
             //-------------------------------------
             // Slider - Track
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(1, 187, 93, 228));
+            e.SetTexture(0, new Rectangle(1, 228, 93-1, 187-228));
             e.TextureColor.States[(int) ControlState.Normal] = new Color(1.0f, 1.0f, 1.0f, 0.55f);
             e.TextureColor.States[(int) ControlState.Focus] = new Color(1.0f, 1.0f, 1.0f, 0.75f);
             e.TextureColor.States[(int) ControlState.Disabled] = new Color(1.0f, 1.0f, 1.0f, 0.25f);
@@ -631,7 +631,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // Slider - Button
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(151, 193, 192, 234));
+            e.SetTexture(0, new Rectangle(151, 234, 192-151, 193-234));
             // Assign the element
             SetDefaultElement(ControlType.Slider, Slider.ButtonLayer, e);
 
@@ -641,8 +641,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             var scrollBarStartX = 196;
             var scrollBarStartY = 191;
             e.SetTexture(0,
-                Rectangle.FromLTRB(scrollBarStartX + 0, scrollBarStartY + 21, scrollBarStartX + 22,
-                    scrollBarStartY + 32));
+                new Rectangle(scrollBarStartX + 0, scrollBarStartY + 32, 21 - 32, 22));
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.TrackLayer, e);
 
@@ -650,8 +649,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Scrollbar - Up Arrow
             //-------------------------------------
             e.SetTexture(0,
-                Rectangle.FromLTRB(scrollBarStartX + 0, scrollBarStartY + 1, scrollBarStartX + 22,
-                    scrollBarStartY + 21));
+                new Rectangle(scrollBarStartX + 0, scrollBarStartY + 21, 1- 21, scrollBarStartX + 22 - scrollBarStartX));
             e.TextureColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 1.0f);
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.UpButtonLayer, e);
@@ -660,8 +658,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Scrollbar - Down Arrow
             //-------------------------------------
             e.SetTexture(0,
-                Rectangle.FromLTRB(scrollBarStartX + 0, scrollBarStartY + 32, scrollBarStartX + 22,
-                    scrollBarStartY + 53));
+                new Rectangle(scrollBarStartX + 0, scrollBarStartY - 53 , 22, 32 - 53));
             e.TextureColor.States[(int) ControlState.Disabled] = new Color(0.8f, 0.8f, 0.8f, 1.0f);
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.DownButtonLayer, e);
@@ -669,7 +666,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //-------------------------------------
             // Scrollbar - Button
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(220, 192, 238, 234));
+            e.SetTexture(0, new Rectangle(220, 234, 238-220, 192-234));
             // Assign the element
             SetDefaultElement(ControlType.Scrollbar, ScrollBar.ThumbLayer, e);
 
@@ -687,42 +684,42 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             //   6 - lower left border
             //   7 - lower border
             //   8 - lower right border
-            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetFont(0, BlackColor, TextFormatFlags.Left | TextFormatFlags.Top);
 
             // Assign the styles
-            e.SetTexture(0, Rectangle.FromLTRB(14, 90, 241, 113));
+            e.SetTexture(0, new Rectangle(14, 113, 241-14, 90-113));
             SetDefaultElement(ControlType.EditBox, EditBox.TextLayer, e);
-            e.SetTexture(0, Rectangle.FromLTRB(8, 82, 14, 90));
+            e.SetTexture(0, new Rectangle(8, 90, 14-8, 82-90));
             SetDefaultElement(ControlType.EditBox, EditBox.TopLeftBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(14, 82, 241, 90));
+            e.SetTexture(0, new Rectangle(14, 90, 241-14, 82-90));
             SetDefaultElement(ControlType.EditBox, EditBox.TopBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(241, 82, 246, 90));
+            e.SetTexture(0, new Rectangle(241, 90, 246-241, 82-90));
             SetDefaultElement(ControlType.EditBox, EditBox.TopRightBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(8, 90, 14, 113));
+            e.SetTexture(0, new Rectangle(8, 113, 14-8, 90 - 113));
             SetDefaultElement(ControlType.EditBox, EditBox.LeftBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(241, 90, 246, 113));
+            e.SetTexture(0, new Rectangle(241, 113, 246-241, 90-113));
             SetDefaultElement(ControlType.EditBox, EditBox.RightBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(8, 113, 14, 121));
+            e.SetTexture(0, new Rectangle(8, 121, 14-8, 113 - 121));
             SetDefaultElement(ControlType.EditBox, EditBox.LowerLeftBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(14, 113, 241, 121));
+            e.SetTexture(0, new Rectangle(14, 121, 241-14, 113-121));
             SetDefaultElement(ControlType.EditBox, EditBox.LowerBorder, e);
-            e.SetTexture(0, Rectangle.FromLTRB(241, 113, 246, 121));
+            e.SetTexture(0, new Rectangle(241, 121, 246-241, 113- 121));
             SetDefaultElement(ControlType.EditBox, EditBox.LowerRightBorder, e);
 
 
             //-------------------------------------
             // Listbox - Main
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(13, 123, 241, 160));
-            e.SetFont(0, BlackColor, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetTexture(0, new Rectangle(13, 123, 241-13, 123-160));
+            e.SetFont(0, BlackColor, TextFormatFlags.Left | TextFormatFlags.Top);
             // Assign the element
             SetDefaultElement(ControlType.ListBox, ListBox.MainLayer, e);
 
             //-------------------------------------
             // Listbox - Selection
             //-------------------------------------
-            e.SetTexture(0, Rectangle.FromLTRB(16, 166, 240, 183));
-            e.SetFont(0, WhiteColor, DrawTextFormat.Left | DrawTextFormat.Top);
+            e.SetTexture(0, new Rectangle(16, 183, 166-183, 240-166));
+            e.SetFont(0, WhiteColor, TextFormatFlags.Left | TextFormatFlags.Top);
             // Assign the element
             SetDefaultElement(ControlType.ListBox, ListBox.SelectionLayer, e);
         }
@@ -5418,8 +5415,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     selRight = temp;
                 }
 
-                selRect = Rectangle.FromLTRB(
-                    selLeft, textRect.Top, selRight, textRect.Bottom);
+                selRect = new Rectangle(
+                    selLeft, textRect.Bottom, selRight-selLeft, textRect.Top - textRect.Bottom);
                 selRect.Offset(textRect.Left - xFirst, 0);
                 selRect.Intersect(textRect);
                 Parent.DrawRectangle(selRect, selectedBackColor);
