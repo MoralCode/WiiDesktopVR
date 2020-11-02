@@ -9,6 +9,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using SharpDX;
 using SharpDX.Direct3D9;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
@@ -23,7 +24,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         private Mesh localMemoryMesh = null; // Local mesh, rebuilt on resize
 
         private Material[] meshMaterials; // Materials for the mesh
-        private BaseTexture[] meshTextures; // Textures for the mesh
+        private BaseTexture[] meshTexture; // Texture for the mesh
 
         /// <summary>Returns the system memory mesh</summary>
         public Mesh SystemMesh => systemMemoryMesh;
@@ -40,7 +41,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Gets a texture from the mesh</summary>
         public BaseTexture GetTexture(int index)
         {
-            return meshTextures[index];
+            return meshTexture[index];
         }
 
         /// <summary>Gets a material from the mesh</summary>
@@ -100,7 +101,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             using (adjacency)
             {
                 // Optimize the mesh for performance
-                systemMemoryMesh.OptimizeInPlace(MeshFlags.OptimizeVertexCache | MeshFlags.OptimizeCompact |
+                systemMemoryMesh.OptimizeInplace(MeshFlags.OptimizeVertexCache | MeshFlags.OptimizeCompact |
                                                  MeshFlags.OptimizeAttributeSort, adjacency);
 
                 // Find the folder of where the mesh file is located
@@ -124,32 +125,32 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 // Allocate the arrays for the materials
                 meshMaterials = new Material[materials.Length];
-                meshTextures = new BaseTexture[materials.Length];
+                meshTexture = new BaseTexture[materials.Length];
 
                 // Copy each material and create it's texture
                 for (var i = 0; i < materials.Length; i++)
                 {
                     // Copy the material first
-                    meshMaterials[i] = materials[i].Material3D;
+                    meshMaterials[i] = materials[i].MaterialD3D;
 
                     // Is there a texture for this material?
-                    if (materials[i].TextureFilename == null || materials[i].TextureFilename.Length == 0)
+                    if (materials[i].TextureFileName == null || materials[i].TextureFileName.Length == 0)
                         continue; // No, just continue now
 
                     ImageInformation info = new ImageInformation();
-                    var textureFile = folder + materials[i].TextureFilename;
+                    var textureFile = folder + materials[i].TextureFileName;
                     try
                     {
                         // First look for the texture in the same folder as the input folder
-                        info = TextureLoader.ImageInformationFromFile(textureFile);
+                        info = Texture.ImageInformationFromFile(textureFile);
                     }
                     catch
                     {
                         try
                         {
                             // Couldn't find it, look in the media folder
-                            textureFile = Utility.FindMediaFile(materials[i].TextureFilename);
-                            info = TextureLoader.ImageInformationFromFile(textureFile);
+                            textureFile = Utility.FindMediaFile(materials[i].TextureFileName);
+                            info = Texture.ImageInformationFromFile(textureFile);
                         }
                         catch (MediaNotFoundException)
                         {
@@ -160,14 +161,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     switch (info.ResourceType)
                     {
-                        case ResourceType.Textures:
-                            meshTextures[i] = TextureLoader.FromFile(device, textureFile);
+                        case ResourceType.Texture:
+                            meshTexture[i] = Texture.FromFile(device, textureFile);
                             break;
                         case ResourceType.CubeTexture:
-                            meshTextures[i] = TextureLoader.FromCubeFile(device, textureFile);
+                            meshTexture[i] = Texture.FromCubeFile(device, textureFile);
                             break;
                         case ResourceType.VolumeTexture:
-                            meshTextures[i] = TextureLoader.FromVolumeFile(device, textureFile);
+                            meshTexture[i] = Texture.FromVolumeFile(device, textureFile);
                             break;
                     }
                 }
@@ -179,11 +180,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         #region Class Methods
 
         /// <summary>Updates the mesh to a new vertex format</summary>
-        public void SetVertexFormat(Device device, VertexFormats format)
+        public void SetVertexFormat(Device device, VertexFormat format)
         {
             Mesh tempSystemMesh = null;
             Mesh tempLocalMesh = null;
-            VertexFormats oldFormat = VertexFormats.None;
+            VertexFormat oldFormat = VertexFormat.None;
             using (systemMemoryMesh)
             {
                 using (localMemoryMesh)
@@ -192,12 +193,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     if (systemMemoryMesh != null)
                     {
                         oldFormat = systemMemoryMesh.VertexFormat;
-                        tempSystemMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value,
+                        tempSystemMesh = systemMemoryMesh.CloneMesh(systemMemoryMesh.Options.Value,
                             format, device);
                     }
 
                     if (localMemoryMesh != null)
-                        tempLocalMesh = localMemoryMesh.Clone(localMemoryMesh.Options.Value,
+                        tempLocalMesh = localMemoryMesh.CloneMesh(localMemoryMesh.Options.Value,
                             format, device);
                 }
             }
@@ -207,7 +208,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             localMemoryMesh = tempLocalMesh;
 
             // Compute normals if they are being requested and the old mesh didn't have them
-            if ((oldFormat & VertexFormats.Normal) == 0 && format != 0)
+            if ((oldFormat & VertexFormat.Normal) == 0 && format != 0)
             {
                 if (systemMemoryMesh != null)
                     systemMemoryMesh.ComputeNormals();
@@ -230,12 +231,12 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     if (systemMemoryMesh != null)
                     {
                         oldDecl = systemMemoryMesh.Declaration;
-                        tempSystemMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value,
+                        tempSystemMesh = systemMemoryMesh.CloneMesh(systemMemoryMesh.Options.Value,
                             decl, device);
                     }
 
                     if (localMemoryMesh != null)
-                        tempLocalMesh = localMemoryMesh.Clone(localMemoryMesh.Options.Value,
+                        tempLocalMesh = localMemoryMesh.CloneMesh(localMemoryMesh.Options.Value,
                             decl, device);
                 }
             }
@@ -281,7 +282,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Make a local memory version of the mesh. Note: because we are passing in
             // no flags, the default behavior is to clone into local memory.
-            localMemoryMesh = systemMemoryMesh.Clone(systemMemoryMesh.Options.Value & ~MeshFlags.SystemMemory,
+            localMemoryMesh = systemMemoryMesh.CloneMesh(systemMemoryMesh.Options.Value & ~MeshFlags.SystemMemory,
                 systemMemoryMesh.VertexFormat, device);
         }
 
@@ -311,7 +312,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                         // set the device material and texture
                         device.Material = meshMaterials[i];
-                        device.SetTexture(0, meshTextures[i]);
+                        device.SetTexture(0, meshTexture[i]);
                     }
 
                     localMemoryMesh.DrawSubset(i);
@@ -326,7 +327,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     // set the device material and texture
                     device.Material = meshMaterials[i];
-                    device.SetTexture(0, meshTextures[i]);
+                    device.SetTexture(0, meshTexture[i]);
                     localMemoryMesh.DrawSubset(i);
                 }
         }
@@ -373,11 +374,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         public void Dispose()
         {
             OnLostDevice(null, EventArgs.Empty);
-            if (meshTextures != null)
-                for (var i = 0; i < meshTextures.Length; i++)
-                    if (meshTextures[i] != null)
-                        meshTextures[i].Dispose();
-            meshTextures = null;
+            if (meshTexture != null)
+                for (var i = 0; i < meshTexture.Length; i++)
+                    if (meshTexture[i] != null)
+                        meshTexture[i].Dispose();
+            meshTexture = null;
             meshMaterials = null;
 
             if (systemMemoryMesh != null)

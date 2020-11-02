@@ -752,7 +752,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
         /// <summary>Create a font object</summary>
         public Font CreateFont(Device device, int height, int width, FontWeight weight, int mip, bool italic,
-            CharacterSet charSet, Precision outputPrecision, FontQuality quality, PitchAndFamily pandf, string fontName)
+            FontCharacterSet charSet, FontPrecision outputPrecision, FontQuality quality, FontPitchAndFamily pandf, string fontName)
         {
             // Create the font description
             FontDescription desc = new FontDescription();
@@ -1226,6 +1226,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             var key = (Key) param.ToInt32();
             switch (key)
             {
+                case Keys.Prior: return CameraKeys.MoveUp; // pgup
+                case Keys.Next: return CameraKeys.MoveDown; // pgdn
                 case Key.LeftControl: return CameraKeys.ControlDown;
                 case Key.Left: return CameraKeys.StrafeLeft;
                 case Key.Right: return CameraKeys.StrafeRight;

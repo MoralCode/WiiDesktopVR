@@ -7,6 +7,8 @@
 //--------------------------------------------------------------------------------------
 
 using System;
+using SharpDX;
+using SharpDX.Direct3D9;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
@@ -335,14 +337,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Set up the dialog
             dialog.SetLocation(0, 0);
             dialog.SetSize(desc.Width, desc.Height);
-            dialog.SetBackgroundColors(new ColorValue((float) 98 / 255, (float) 138 / 255, (float) 206 / 255),
-                new ColorValue((float) 54 / 255, (float) 105 / 255, (float) 192 / 255),
-                new ColorValue((float) 54 / 255, (float) 105 / 255, (float) 192 / 255),
-                new ColorValue((float) 10 / 255, (float) 73 / 255, (float) 179 / 255));
+            dialog.SetBackgroundColors(new Color((float) 98 / 255, (float) 138 / 255, (float) 206 / 255),
+                new Color((float) 54 / 255, (float) 105 / 255, (float) 192 / 255),
+                new Color((float) 54 / 255, (float) 105 / 255, (float) 192 / 255),
+                new Color((float) 10 / 255, (float) 73 / 255, (float) 179 / 255));
 
             Device device = parent.Device;
             device.BeginStateBlock();
-            device.RenderState.FillMode = FillMode.Solid;
+            device.SetRenderState(RenderState.FillMode, FillMode.Solid);
             state = device.EndStateBlock();
         }
 

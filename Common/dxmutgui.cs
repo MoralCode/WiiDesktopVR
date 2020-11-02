@@ -12,7 +12,12 @@ using System.Drawing;
 using System.Windows.Forms;
 using SharpDX;
 using SharpDX.Direct3D9;
+using SharpDX.DirectInput;
+using Color = SharpDX.Color;
+using Device = SharpDX.Direct3D9.Device;
 using Font = SharpDX.Direct3D9.Font;
+using Point = SharpDX.Point;
+using Rectangle = SharpDX.Rectangle;
 
 namespace Microsoft.Samples.DirectX.UtilityToolkit
 {
@@ -123,7 +128,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Set the font</summary>
-        public void SetFont(uint font, Color defaultFontColor, DrawTextFormat format)
+        public void SetFont(uint font, Color defaultFontColor, TextFormatFlags format)
         {
             // Store data
             FontIndex = font;
@@ -134,7 +139,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Set the font</summary>
         public void SetFont(uint font)
         {
-            SetFont(font, Dialog.WhiteColor, DrawTextFormat.Center | DrawTextFormat.VerticalCenter);
+            SetFont(font, Dialog.WhiteColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
 
         /// <summary>
@@ -156,7 +161,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
         public uint TextureIndex; // Index of the texture for this Element 
         public uint FontIndex; // Index of the font for this Element 
-        public DrawTextFormat textFormat; // The Format argument to draw text
+        public TextFormatFlags textFormat; // The Format argument to draw text
 
         public Rectangle textureRect; // Bounding rectangle of this element on the composite texture
 
@@ -314,8 +319,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 fn.Font.Dispose(); // Get rid of this
 
             // Create the new font
-            fn.Font = new Font(Device, (int) fn.Height, 0, fn.Weight, 1, false, CharacterSet.Default,
-                Precision.Default, FontQuality.Default, PitchAndFamily.DefaultPitch | PitchAndFamily.FamilyDoNotCare,
+            fn.Font = new Font(SharpDX.Direct3D9.Device, (int) fn.Height, 0, fn.Weight, 1, false, FontCharacterSet.Default,
+                FontPrecision.Default, FontQuality.Default, FontPitchAndFamily.Default | FontPitchAndFamily.DontCare,
                 fn.FaceName);
         }
 
@@ -336,8 +341,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Create the new texture
             ImageInformation info = new ImageInformation();
-            tn.Texture = TextureLoader.FromFile(Device, path, D3DX.Default, D3DX.Default, D3DX.Default, Usage.None,
-                Format.Unknown, Pool.Managed, (Filter) D3DX.Default, (Filter) D3DX.Default, 0, ref info);
+            tn.Texture = Texture.FromFile(Device, path, D3DX.Default, D3DX.Default, D3DX.Default, Usage.None,
+                Format.Unknown, Pool.Managed, (Filter) D3DX.Default, (Filter) D3DX.Default, 0, out info);
 
             // Store dimensions
             tn.Width = (uint) info.Width;
@@ -763,14 +768,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         {
             vertices = new[]
             {
-                new CustomVertex.TransformedColoredTextured(dialogX, dialogY, 0.5f, 1.0f, topLeftColor.ToArgb(), 0.0f,
+                new CustomVertex.TransformedColoredTextured(dialogX, dialogY, 0.5f, 1.0f, topLeftColor.ToBgra(), 0.0f,
                     0.5f),
                 new CustomVertex.TransformedColoredTextured(dialogX + Width, dialogY, 0.5f, 1.0f,
-                    topRightColor.ToArgb(), 1.0f, 0.5f),
+                    topRightColor.ToBgra(), 1.0f, 0.5f),
                 new CustomVertex.TransformedColoredTextured(dialogX + Width, dialogY + Height, 0.5f, 1.0f,
-                    bottomRightColor.ToArgb(), 1.0f, 1.0f),
+                    bottomRightColor.ToBgra(), 1.0f, 1.0f),
                 new CustomVertex.TransformedColoredTextured(dialogX, dialogY + Height, 0.5f, 1.0f,
-                    bottomLeftColor.ToArgb(), 0.0f, 1.0f)
+                    bottomLeftColor.ToBgra(), 0.0f, 1.0f)
             };
         }
 
@@ -1008,7 +1013,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     if (msg == NativeMethods.WindowMessage.KeyUp)
                         foreach (Control c in controlList)
                             // Was the hotkey hit?
-                            if (c.Hotkey == (Keys) wParam.ToInt32())
+                            if (c.Hotkey == (Key) wParam.ToInt32())
                             {
                                 // Yup!
                                 c.OnHotKey();
@@ -1021,11 +1026,11 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         if (!IsUsingKeyboardInput)
                             return false;
 
-                        var key = (Keys) wParam.ToInt32();
+                        var key = (Key) wParam.ToInt32();
                         switch (key)
                         {
-                            case Keys.Right:
-                            case Keys.Down:
+                            case Key.Right:
+                            case Key.Down:
                                 if (controlFocus != null)
                                 {
                                     OnCycleFocus(true);
@@ -1033,8 +1038,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                                 }
 
                                 break;
-                            case Keys.Left:
-                            case Keys.Up:
+                            case Key.Left:
+                            case Key.Up:
                                 if (controlFocus != null)
                                 {
                                     OnCycleFocus(false);
@@ -1042,14 +1047,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                                 }
 
                                 break;
-                            case Keys.Tab:
+                            case Key.Tab:
                                 if (controlFocus == null)
                                 {
                                     FocusDefaultControl();
                                 }
                                 else
                                 {
-                                    var shiftDown = NativeMethods.IsKeyDown(Keys.ShiftKey);
+                                    var shiftDown = NativeMethods.IsKeyDown(Key.LeftShift);
 
                                     OnCycleFocus(!shiftDown);
                                 }
@@ -1219,7 +1224,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Go through a bunch of controls
             for (var i = 0; i < 0xffff; i++)
             {
-                control = forward ? GetNextControl(control) : GetPreviousControl(control);
+                control = forward ? GetPageDownControl(control) : GetPreviousControl(control);
 
                 // If we've gone in a full circle, focus won't change
                 if (control == controlFocus)
@@ -1242,7 +1247,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>
         ///     Gets the next control
         /// </summary>
-        private static Control GetNextControl(Control control)
+        private static Control GetPageDownControl(Control control)
         {
             var index = (int) control.index + 1;
 
@@ -1580,7 +1585,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Adds a button control to the dialog</summary>
-        public Button AddButton(int id, string text, int x, int y, int w, int h, Keys hotkey, bool isDefault)
+        public Button AddButton(int id, string text, int x, int y, int w, int h, Key hotkey, bool isDefault)
         {
             // First create the button
             var b = new Button(this);
@@ -1606,7 +1611,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Adds a checkbox to the dialog</summary>
-        public Checkbox AddCheckBox(int id, string text, int x, int y, int w, int h, bool ischecked, Keys hotkey,
+        public Checkbox AddCheckBox(int id, string text, int x, int y, int w, int h, bool ischecked, Key hotkey,
             bool isDefault)
         {
             // First create the checkbox
@@ -1635,7 +1640,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
         /// <summary>Adds a radiobutton to the dialog</summary>
         public RadioButton AddRadioButton(int id, uint groupId, string text, int x, int y, int w, int h, bool ischecked,
-            Keys hotkey, bool isDefault)
+            Key hotkey, bool isDefault)
         {
             // First create the RadioButton
             var c = new RadioButton(this);
@@ -1663,7 +1668,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>Adds a combobox control to the dialog</summary>
-        public ComboBox AddComboBox(int id, int x, int y, int w, int h, Keys hotkey, bool isDefault)
+        public ComboBox AddComboBox(int id, int x, int y, int w, int h, Key hotkey, bool isDefault)
         {
             // First create the combo
             var c = new ComboBox(this);
@@ -1782,15 +1787,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             DialogResourceManager.GetGlobalInstance().StateBlock.Capture();
 
             // Set some render/texture states
-            device.RenderState.AlphaBlendEnable = true;
-            device.RenderState.SourceBlend = Blend.SourceAlpha;
-            device.RenderState.DestinationBlend = Blend.InvSourceAlpha;
-            device.RenderState.AlphaTestEnable = false;
-            device.TextureState[0].ColorOperation = TextureOperation.SelectArg2;
-            device.TextureState[0].ColorArgument2 = TextureArgument.Diffuse;
-            device.TextureState[0].AlphaOperation = TextureOperation.SelectArg1;
-            device.TextureState[0].AlphaArgument1 = TextureArgument.Diffuse;
-            device.RenderState.ZBufferEnable = false;
+            device.SetRenderState(RenderState.AlphaBlendEnable, true);
+            device.SetRenderState(RenderState.SourceBlend, Blend.SourceAlpha);
+            device.SetRenderState(RenderState.DestinationBlend, Blend.InverseSourceAlpha);
+            device.SetRenderState(RenderState.AlphaTestEnable, false);
+            device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.SelectArg2);
+            device.SetTextureStageState(0, TextureStage.ColorArg0, TextureArgument.Diffuse); //assume colorargument0 from colorargument
+            device.SetTextureStageState(0, TextureStage.AlphaOperation, TextureOperation.SelectArg1);
+            device.SetTextureStageState(0, TextureStage.AlphaArg1, TextureArgument.Diffuse);
+            device.SetRenderState(RenderState.ZEnable, false); //assume this is the same as zbufferenable from DirectX
             // Clear vertex/pixel shader
             device.VertexShader = null;
             device.PixelShader = null;
@@ -1803,14 +1808,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             }
 
             // Reset states
-            device.TextureState[0].ColorOperation = TextureOperation.Modulate;
-            device.TextureState[0].ColorArgument1 = TextureArgument.TextureColor;
-            device.TextureState[0].ColorArgument2 = TextureArgument.Diffuse;
-            device.TextureState[0].AlphaOperation = TextureOperation.Modulate;
-            device.TextureState[0].AlphaArgument1 = TextureArgument.TextureColor;
-            device.TextureState[0].AlphaArgument2 = TextureArgument.Diffuse;
+            device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Modulate);
+            device.SetTextureStageState(0, TextureStage.ColorArg1, TextureArgument.TextureColor);
+            device.SetTextureStageState(0, TextureStage.ColorArg2, TextureArgument.Diffuse);
+            device.SetTextureStageState(0, TextureStage.AlphaOperation, TextureOperation.Modulate);
+            device.SetTextureStageState(0, TextureStage.AlphaArg1, TextureArgument.TextureColor);
+            device.SetTextureStageState(0, TextureStage.AlphaArg1, TextureArgument.Diffuse);
 
-            device.SamplerState[0].MinFilter = TextureFilter.Linear;
+            device.SetSamplerState(0, SamplerState.MinFilter, TextureFilter.Linear);
 
             // Set the texture up, and begin the sprite
             var tNode = GetTexture(0);
@@ -1880,7 +1885,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         public void DrawText(string text, Element element, Rectangle rect, bool shadow)
         {
             // No need to draw fully transparant layers
-            if (element.FontColor.Current.Alpha == 0)
+            if (element.FontColor.Current.A == 0)
                 return; // Nothing to do
 
             var screenRect = rect;
@@ -1905,14 +1910,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             }
 
             fNode.Font.DrawText(DialogResourceManager.GetGlobalInstance().Sprite, text,
-                screenRect, element.textFormat, element.FontColor.Current.ToArgb());
+                screenRect, element.textFormat, element.FontColor.Current.ToBgra());
         }
 
         /// <summary>Draw a sprite</summary>
         public void DrawSprite(Element element, Rectangle rect)
         {
             // No need to draw fully transparant layers
-            if (element.TextureColor.Current.Alpha == 0)
+            if (element.TextureColor.Current.A == 0)
                 return; // Nothing to do
 
             var texRect = element.textureRect;
@@ -1938,7 +1943,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
             // Finally draw the sprite
             DialogResourceManager.GetGlobalInstance().Sprite.Draw(tNode.Texture, texRect, new Vector3(), pos,
-                element.TextureColor.Current.ToArgb());
+                element.TextureColor.Current.ToBgra());
         }
 
         /// <summary>Draw's some text</summary>
@@ -1958,7 +1963,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 rect.Offset(0, CaptionHeight);
 
             // Get the integer value of the color
-            int realColor = color.ToArgb();
+            int realColor = color.ToBgra();
             // Create some vertices
             CustomVertex.TransformedColoredTextured[] verts =
             {
@@ -1984,15 +1989,15 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 device.VertexFormat = CustomVertex.TransformedColoredTextured.Format;
 
                 // Set some texture states
-                device.TextureState[0].ColorOperation = TextureOperation.SelectArg2;
-                device.TextureState[0].AlphaOperation = TextureOperation.SelectArg2;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.SelectArg2);
+                device.SetTextureStageState(0, TextureStage.AlphaOperation, TextureOperation.SelectArg2);
 
                 // Draw the rectangle
                 device.DrawUserPrimitives(PrimitiveType.TriangleFan, 2, verts);
 
                 // Reset some texture states
-                device.TextureState[0].ColorOperation = TextureOperation.Modulate;
-                device.TextureState[0].AlphaOperation = TextureOperation.Modulate;
+                device.SetTextureStageState(0, TextureStage.ColorOperation, TextureOperation.Modulate);
+                device.SetTextureStageState(0, TextureStage.AlphaOperation, TextureOperation.Modulate);
 
                 // Restore the vertex declaration
                 device.VertexDeclaration = decl;
@@ -2067,7 +2072,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         }
 
         /// <summary>The controls hotkey</summary>
-        public virtual Keys Hotkey
+        public virtual Key Hotkey
         {
             get => hotKey;
             set => hotKey = value;
@@ -2153,7 +2158,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Does the control contain this point</summary>
         public virtual bool ContainsPoint(Point pt)
         {
-            return boundingBox.Contains(pt);
+            return boundingBox.Contains(pt.X, pt.Y);
         }
 
         /// <summary>Called to set control's location</summary>
@@ -2203,7 +2208,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         protected bool hasFocus;
         protected int controlId; // ID Number
         protected ControlType controlType; // Control type, set in constructor
-        protected Keys hotKey; // Controls hotkey
+        protected Key hotKey; // Controls hotkey
         protected bool enabled; // Enabled/disabled flag
         protected Rectangle boundingBox; // Rectangle defining the active region of the control
 
@@ -2316,7 +2321,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             switch (msg)
             {
                 case NativeMethods.WindowMessage.KeyDown:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         isPressed = true;
                         return true;
@@ -2324,7 +2329,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     break;
                 case NativeMethods.WindowMessage.KeyUp:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         isPressed = false;
                         RaiseClickEvent(this, true);
@@ -2516,7 +2521,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// </summary>
         public override bool ContainsPoint(Point pt)
         {
-            return boundingBox.Contains(pt) || buttonRect.Contains(pt);
+            return boundingBox.Contains(pt.X, pt.Y) || buttonRect.Contains(pt.X, pt.Y);
         }
 
         /// <summary>
@@ -2586,7 +2591,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             switch (msg)
             {
                 case NativeMethods.WindowMessage.KeyDown:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         isPressed = true;
                         return true;
@@ -2594,7 +2599,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     break;
                 case NativeMethods.WindowMessage.KeyUp:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         if (isPressed)
                         {
@@ -2741,7 +2746,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             switch (msg)
             {
                 case NativeMethods.WindowMessage.KeyDown:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         isPressed = true;
                         return true;
@@ -2749,7 +2754,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     break;
                 case NativeMethods.WindowMessage.KeyUp:
-                    if ((Keys) wParam.ToInt32() == Keys.Space)
+                    if ((Key) wParam.ToInt32() == Key.Space)
                     {
                         if (isPressed)
                         {
@@ -2924,9 +2929,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 var thumbHeight = Math.Max(trackRect.Height * pageSize / (end - start), MinimumThumbSize);
                 var maxPosition = end - start - pageSize;
-                thumbRect.Location = new Point(thumbRect.Left,
-                    trackRect.Top + (position - start) * (trackRect.Height - thumbHeight) / maxPosition);
-                thumbRect.Size = new Size(thumbRect.Width, thumbHeight);
+                thumbRect.Y = trackRect.Top + (position - start) * (trackRect.Height - thumbHeight) / maxPosition;
+                thumbRect.Height =  thumbHeight;
                 showingThumb = true;
             }
             else
@@ -3029,7 +3033,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     Parent.SampleFramework.Window.Capture = true;
 
                     // Check for on up button
-                    if (upButtonRect.Contains(pt))
+                    if (upButtonRect.Contains(pt.X, pt.Y))
                     {
                         if (position > start)
                             --position;
@@ -3038,7 +3042,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     }
 
                     // Check for on down button
-                    if (downButtonRect.Contains(pt))
+                    if (downButtonRect.Contains(pt.X, pt.Y))
                     {
                         if (position + pageSize < end)
                             ++position;
@@ -3047,7 +3051,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     }
 
                     // Check for click on thumb
-                    if (thumbRect.Contains(pt))
+                    if (thumbRect.Contains(pt.X, pt.Y))
                     {
                         isDragging = true;
                         thumbOffsetY = pt.Y - thumbRect.Top;
@@ -3195,22 +3199,20 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 boundingBox.Height, boundingBox.Height);
 
             textRect = boundingBox;
-            textRect.Size = new Size(textRect.Width - buttonRect.Width, textRect.Height);
+            textRect.Width = textRect.Width - buttonRect.Width;
 
             dropDownRect = textRect;
             dropDownRect.Offset(0, (int) (0.9f * textRect.Height));
-            dropDownRect.Size = new Size(dropDownRect.Width - scrollWidth, dropDownRect.Height + dropHeight);
+            dropDownRect.Width = dropDownRect.Width - scrollWidth;
+            dropDownRect.Height = dropDownRect.Height + dropHeight;
 
             // Scale it down slightly
-            var loc = dropDownRect.Location;
-            var size = dropDownRect.Size;
+            dropDownRect.X += (int) (0.1f * dropDownRect.Width);
+            dropDownRect.Y += (int) (0.1f * dropDownRect.Height);
+            dropDownRect.Width -= 2 * (int) (0.1f * dropDownRect.Width);
+            dropDownRect.Height -= 2 * (int) (0.1f * dropDownRect.Height);
 
-            loc.X += (int) (0.1f * dropDownRect.Width);
-            loc.Y += (int) (0.1f * dropDownRect.Height);
-            size.Width -= 2 * (int) (0.1f * dropDownRect.Width);
-            size.Height -= 2 * (int) (0.1f * dropDownRect.Height);
-
-            dropDownTextRect = new Rectangle(loc, size);
+            dropDownTextRect = new Rectangle(dropDownRect.X, dropDownRect.Y, dropDownRect.Width, dropDownRect.Height);
 
             // Update the scroll bars rects too
             scrollbarControl.SetLocation(dropDownRect.Right, dropDownRect.Top + 2);
@@ -3289,9 +3291,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 case NativeMethods.WindowMessage.KeyDown:
                 {
-                    switch ((Keys) wParam.ToInt32())
+                    switch ((Key) wParam.ToInt32())
                     {
-                        case Keys.Return:
+                        case Key.Return:
                         {
                             if (isComboOpen)
                             {
@@ -3311,7 +3313,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                             break;
                         }
-                        case Keys.F4:
+                        case Key.F4:
                         {
                             // Filter out auto repeats
                             if ((lParam.ToInt32() & RepeatMask) != 0)
@@ -3328,8 +3330,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                             return true;
                         }
-                        case Keys.Left:
-                        case Keys.Up:
+                        case Key.Left:
+                        case Key.Up:
                         {
                             if (focusedIndex > 0)
                             {
@@ -3341,8 +3343,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                             return true;
                         }
-                        case Keys.Right:
-                        case Keys.Down:
+                        case Key.Right:
+                        case Key.Down:
                         {
                             if (focusedIndex + 1 < NumberItems)
                             {
@@ -3378,13 +3380,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 case NativeMethods.WindowMessage.MouseMove:
                 {
-                    if (isComboOpen && dropDownRect.Contains(pt))
+                    if (isComboOpen && dropDownRect.Contains(pt.X, pt.Y))
                     {
                         // Determine which item has been selected
                         for (var i = 0; i < itemList.Count; i++)
                         {
                             var cbi = (ComboBoxItem) itemList[i];
-                            if (cbi.IsItemVisible && cbi.ItemRect.Contains(pt)) focusedIndex = i;
+                            if (cbi.IsItemVisible && cbi.ItemRect.Contains(pt.X, pt.Y)) focusedIndex = i;
                         }
 
                         return true;
@@ -3417,13 +3419,13 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     }
 
                     // Perhaps this click is within the dropdown
-                    if (isComboOpen && dropDownRect.Contains(pt))
+                    if (isComboOpen && dropDownRect.Contains(pt.X, pt.Y))
                     {
                         // Determine which item has been selected
                         for (var i = scrollbarControl.TrackPosition; i < itemList.Count; i++)
                         {
                             var cbi = (ComboBoxItem) itemList[i];
-                            if (cbi.IsItemVisible && cbi.ItemRect.Contains(pt))
+                            if (cbi.IsItemVisible && cbi.ItemRect.Contains(pt.X, pt.Y))
                             {
                                 selectedIndex = focusedIndex = i;
                                 RaiseChangedEvent(this, true);
@@ -3869,7 +3871,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
         /// <summary>Does the control contain this point?</summary>
         public override bool ContainsPoint(Point pt)
         {
-            return boundingBox.Contains(pt) || buttonRect.Contains(pt);
+            return boundingBox.Contains(pt.X, pt.Y) || buttonRect.Contains(pt.X, pt.Y);
         }
 
         /// <summary>Update the rectangles for the control</summary>
@@ -3906,7 +3908,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 case NativeMethods.WindowMessage.LeftButtonDoubleClick:
                 case NativeMethods.WindowMessage.LeftButtonDown:
                 {
-                    if (buttonRect.Contains(pt))
+                    if (buttonRect.Contains(pt.X, pt.Y))
                     {
                         // Pressed while inside the control
                         isPressed = true;
@@ -3920,7 +3922,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         return true;
                     }
 
-                    if (boundingBox.Contains(pt))
+                    if (boundingBox.Contains(pt.X, pt.Y))
                     {
                         if (pt.X > buttonX + controlX)
                         {
@@ -3972,22 +3974,22 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 return false;
 
             if (msg == NativeMethods.WindowMessage.KeyDown)
-                switch ((Keys) wParam.ToInt32())
+                switch ((Key) wParam.ToInt32())
                 {
-                    case Keys.Home:
+                    case Key.Home:
                         SetValueInternal(minValue, true);
                         return true;
-                    case Keys.End:
+                    case Key.End:
                         SetValueInternal(maxValue, true);
                         return true;
-                    case Keys.Prior:
-                    case Keys.Left:
-                    case Keys.Up:
+                    case Key.PageUp:
+                    case Key.Left:
+                    case Key.Up:
                         SetValueInternal(currentValue - 1, true);
                         return true;
-                    case Keys.Next:
-                    case Keys.Right:
-                    case Keys.Down:
+                    case Key.PageDown:
+                    case Key.Right:
+                    case Key.Down:
                         SetValueInternal(currentValue + 1, true);
                         return true;
                 }
@@ -4208,14 +4210,14 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             {
                 case NativeMethods.WindowMessage.KeyDown:
                 {
-                    switch ((Keys) wParam.ToInt32())
+                    switch ((Key) wParam.ToInt32())
                     {
-                        case Keys.Up:
-                        case Keys.Down:
-                        case Keys.Next:
-                        case Keys.Prior:
-                        case Keys.Home:
-                        case Keys.End:
+                        case Key.Up:
+                        case Key.Down:
+                        case Key.PageDown: //pgdn = next
+                        case Key.PageUp://pgup = prior
+                        case Key.Home:
+                        case Key.End:
                         {
                             // If no items exists, do nothing
                             if (itemList.Count == 0)
@@ -4224,24 +4226,24 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                             var oldSelected = selectedIndex;
 
                             // Adjust selectedIndex
-                            switch ((Keys) wParam.ToInt32())
+                            switch ((Key) wParam.ToInt32())
                             {
-                                case Keys.Up:
+                                case Key.Up:
                                     --selectedIndex;
                                     break;
-                                case Keys.Down:
+                                case Key.Down:
                                     ++selectedIndex;
                                     break;
-                                case Keys.Next:
+                                case Key.PageDown:
                                     selectedIndex += scrollbarControl.PageSize - 1;
                                     break;
-                                case Keys.Prior:
+                                case Key.PageUp:
                                     selectedIndex -= scrollbarControl.PageSize - 1;
                                     break;
-                                case Keys.Home:
+                                case Key.Home:
                                     selectedIndex = 0;
                                     break;
-                                case Keys.End:
+                                case Key.End:
                                     selectedIndex = itemList.Count - 1;
                                     break;
                             }
@@ -4267,7 +4269,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                                     // Is shift being held down?
                                     var shiftDown = (NativeMethods.GetAsyncKeyState
-                                        ((int) Keys.ShiftKey) & 0x8000) != 0;
+                                        ((int) Key.LeftShift) & 0x8000) != 0;
 
                                     if (shiftDown)
                                     {
@@ -4336,7 +4338,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 case NativeMethods.WindowMessage.LeftButtonDown:
                 {
                     // Check for clicks in the text area
-                    if (itemList.Count > 0 && selectionRect.Contains(pt))
+                    if (itemList.Count > 0 && selectionRect.Contains(pt.X, pt.Y))
                     {
                         // Compute the index of the clicked item
                         var clicked = 0;
@@ -4987,7 +4989,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             textRect.Inflate(-spacing, -spacing);
 
             // Make the underlying rich text box the same size
-            textData.Size = textRect.Size;
+            textData.Size = new Size(textRect.Width, textRect.Height);
         }
 
         /// <summary>Copy the selected text to the clipboard</summary>
@@ -5064,16 +5066,16 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             // Default to not handling the message
             var isHandled = false;
             if (msg == NativeMethods.WindowMessage.KeyDown)
-                switch ((Keys) wParam.ToInt32())
+                switch ((Key) wParam.ToInt32())
                 {
-                    case Keys.End:
-                    case Keys.Home:
+                    case Key.End:
+                    case Key.Home:
                         // Move the caret
-                        if (wParam.ToInt32() == (int) Keys.End)
+                        if (wParam.ToInt32() == (int) Key.End)
                             PlaceCaret(textData.Text.Length);
                         else
                             PlaceCaret(0);
-                        if (!NativeMethods.IsKeyDown(Keys.ShiftKey))
+                        if (!NativeMethods.IsKeyDown(Key.LeftShift))
                         {
                             // Shift is not down. Update selection start along with caret
                             textData.SelectionStart = caretPosition;
@@ -5083,18 +5085,18 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         ResetCaretBlink();
                         isHandled = true;
                         break;
-                    case Keys.Insert:
-                        if (NativeMethods.IsKeyDown(Keys.ControlKey))
+                    case Key.Insert:
+                        if (NativeMethods.IsKeyDown(Key.LeftControl))
                             // Control insert -> Copy to clipboard
                             CopyToClipboard();
-                        else if (NativeMethods.IsKeyDown(Keys.ShiftKey))
+                        else if (NativeMethods.IsKeyDown(Key.LeftShift))
                             // Shift insert -> Paste from clipboard
                             PasteFromClipboard();
                         else
                             // Toggle insert mode
                             isInsertMode = !isInsertMode;
                         break;
-                    case Keys.Delete:
+                    case Key.Delete:
                         // Check to see if there is a text selection
                         if (caretPosition != textData.SelectionStart)
                         {
@@ -5115,8 +5117,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         isHandled = true;
                         break;
 
-                    case Keys.Left:
-                        if (NativeMethods.IsKeyDown(Keys.ControlKey))
+                    case Key.Left:
+                        if (NativeMethods.IsKeyDown(Key.LeftControl))
                         {
                             // Control is down. Move the caret to a new item
                             // instead of a character.
@@ -5126,7 +5128,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                             PlaceCaret(caretPosition - 1); // Move one to the left
                         }
 
-                        if (!NativeMethods.IsKeyDown(Keys.ShiftKey))
+                        if (!NativeMethods.IsKeyDown(Key.LeftShift))
                         {
                             // Shift is not down. Update selection
                             // start along with the caret.
@@ -5138,8 +5140,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         isHandled = true;
                         break;
 
-                    case Keys.Right:
-                        if (NativeMethods.IsKeyDown(Keys.ControlKey))
+                    case Key.Right:
+                        if (NativeMethods.IsKeyDown(Key.LeftControl))
                         {
                             // Control is down. Move the caret to a new item
                             // instead of a character.
@@ -5149,7 +5151,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                             PlaceCaret(caretPosition + 1); // Move one to the left
                         }
 
-                        if (!NativeMethods.IsKeyDown(Keys.ShiftKey))
+                        if (!NativeMethods.IsKeyDown(Key.LeftShift))
                         {
                             // Shift is not down. Update selection
                             // start along with the caret.
@@ -5161,8 +5163,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         isHandled = true;
                         break;
 
-                    case Keys.Up:
-                    case Keys.Down:
+                    case Key.Up:
+                    case Key.Down:
                         // Trap up and down arrows so that the dialog
                         // does not switch focus to another control.
                         isHandled = true;
@@ -5170,7 +5172,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                     default:
                         // Let the application handle escape
-                        isHandled = (Keys) wParam.ToInt32() == Keys.Escape;
+                        isHandled = (Key) wParam.ToInt32() == Key.Escape;
                         break;
                 }
 
@@ -5202,7 +5204,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     isMouseDragging = true;
                     Parent.SampleFramework.Window.Capture = true;
                     // Determine the character corresponding to the coordinates
-                    var index = textData.GetCharIndexFromPosition(p);
+                    // it wouldnt let me typecast, so imma just recreate it with the same data
+                    var index = textData.GetCharIndexFromPosition(new System.Drawing.Point(p.X, p.Y));
 
                     var startPosition = textData.GetPositionFromCharIndex(index);
 
@@ -5224,7 +5227,8 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     if (isMouseDragging)
                     {
                         // Determine the character corresponding to the coordinates
-                        var dragIndex = textData.GetCharIndexFromPosition(p);
+                        //it wouldnt let me typecast so.....
+                        var dragIndex = textData.GetCharIndexFromPosition(new System.Drawing.Point(p.X, p.Y));
 
                         if (dragIndex < textData.Text.Length)
                             PlaceCaret(dragIndex + 1);
@@ -5249,7 +5253,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                 var charKey = wParam.ToInt32();
                 switch (charKey)
                 {
-                    case (int) Keys.Back:
+                    case (int) Key.Back:
                     {
                         // If there's a selection, treat this
                         // like a delete key.
@@ -5271,8 +5275,9 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         ResetCaretBlink();
                         break;
                     }
-                    case 24: // Ctrl-X Cut
-                    case (int) Keys.Cancel: // Ctrl-C Copy
+                    //the single-key codes for copy and paste seem to have been removed from DirectX to SharpDX
+                    /*case 24: // Ctrl-X Cut
+                    case (int) Key.Cancel: // Ctrl-C Copy
                     {
                         CopyToClipboard();
 
@@ -5293,7 +5298,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                         RaiseChangedEvent(this, true);
                         break;
                     }
-                    case (int) Keys.Return:
+                    case (int) Key.Return:
                         // Invoke the event when the user presses Enter.
                         RaiseEnterEvent(this, true);
                         break;
@@ -5309,7 +5314,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
                         break;
                     }
-
+                    
                     // Junk characters we don't want in the string
                     case 26: // Ctrl Z
                     case 2: // Ctrl B
@@ -5335,6 +5340,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
                     case 29: // Ctrl ]
                     case 28: // Ctrl \ 
                         break;
+                    */
 
                     default:
                     {
