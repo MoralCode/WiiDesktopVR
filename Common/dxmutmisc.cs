@@ -2084,7 +2084,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             textSprite = s;
             lineHeight = l;
             color = unchecked((int) 0xffffffff);
-            point = Point.Empty;
+            point = Point.Zero; //Was Point.Empty
         }
 
         /// <summary>
@@ -2095,7 +2095,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
             if (textFont == null)
                 throw new InvalidOperationException("You cannot draw text.  There is no font object.");
             // Create the rectangle to draw to
-            var rect = new Rectangle(point, Size.Empty);
+            var rect = new Rectangle(point.X, point.Y, Size.Empty.Width, Size.Empty.Height);
             textFont.DrawText(textSprite, text, rect, DrawTextFormat.NoClip, color);
 
             // Increase the line height
@@ -2135,7 +2135,7 @@ namespace Microsoft.Samples.DirectX.UtilityToolkit
 
         public void SetForegroundColor(Color c)
         {
-            color = c.ToArgb();
+            color = c.ToAbgr();
         }
 
         /// <summary>
