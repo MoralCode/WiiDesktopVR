@@ -4,6 +4,11 @@ This is effectively a fork of Johnny Chung Lee's WiiDesktopVR Wii Remote head tr
 
 Since the [original code](http://johnnylee.net/projects/wii/) was originally uploaded without source control, the first commits to this repository were for checking in the original code into source control.
 
+## Usage
+
+A comment that seemed helpful for people looking to replicate the demos from Johnny's  original video:
+> if you hit 'b' it will display the stadium pic as a background. A few other keys toggle the display of the grid, targets, and lines. ([source](https://procrastineering.blogspot.com/2007/12/bug-with-desktopvr-program.html?showComment=1198401420000#c6530835734817007396))
+
 
 ## Planned Improvements
 
