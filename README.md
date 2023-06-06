@@ -15,3 +15,5 @@ Because this code was originally posted in the late 2000's and was written using
 I have already converted most of the stuff that is relatively easy and amounts to effectively just API changes from DirectX to sharpDX (things like method parameters being rearranged, rectangles being changed to x,y,width, height rather than position and size etc. see my commits on the  `cross-platform` branch for details)
 
 
+### other versions
+- A potentially more stable/Vista/64-bit compatible version has been created by Andrea Leganza (updated/not broken link): https://www.leganza.it/2008/03/09/wiidesktopvr-wiimotelib-1-2-1-visual-c-2008-express-x64-env-works-also-for-x86/
